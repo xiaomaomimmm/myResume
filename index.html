@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>冀晓禹 作品集</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/cat-avatar.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -54,7 +55,11 @@
       .ring-card .ring-name { position:absolute; top:-18px; left:0; max-width:100%; color:#fff; font-size:10px; line-height:1.15; text-shadow:0 1px 5px rgba(0,0,0,.9); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .side-card,.panel { display:none !important; }
       .showcase-deck { display:none !important; }
-      .focus-layer { position:fixed; inset:0; z-index:20; display:grid; place-items:center; padding:32px; background:rgba(5,7,5,.78); backdrop-filter:blur(18px); opacity:0; pointer-events:none; transition:opacity .28s ease; }
+      .loading-layer { position:fixed; inset:0; z-index:30; display:grid; place-items:center; background:rgba(5,7,5,.26); backdrop-filter:blur(3px); opacity:0; pointer-events:none; transition:opacity .2s ease; }
+      .loading-layer.visible { opacity:1; }
+      .loading-spinner { width:54px; height:54px; border:3px solid rgba(244,239,231,.22); border-top-color:var(--accent); border-radius:50%; animation:loading-spin .8s linear infinite; box-shadow:0 0 24px color-mix(in srgb, var(--accent) 35%, transparent); }
+      @keyframes loading-spin { to { transform:rotate(360deg); } }
+      .focus-layer { inset:0; z-index:20; display:grid; place-items:center; padding:32px; background:rgba(5,7,5,.78); backdrop-filter:blur(18px); opacity:0; pointer-events:none; transition:opacity .28s ease; }
       .focus-layer.visible { opacity:1; pointer-events:auto; }
       .focus-card { position:relative; width:min(50vw,700px); height:min(94vh,1000px); max-height:calc(100vh - 64px); display:flex; flex-direction:column; padding:18px; border:1px solid rgba(244,239,231,.28); background:rgba(17,19,16,.96); box-shadow:0 24px 80px rgba(0,0,0,.42); transform:translateY(18px) scale(.96); transition:transform .34s cubic-bezier(.2,.8,.2,1); }
       .focus-layer.visible .focus-card { transform:translateY(0) scale(1); }
@@ -128,6 +133,7 @@
   </head>
   <body>
     <div id="app"></div>
+    <div class="loading-layer" id="loading-layer" aria-hidden="true"><div class="loading-spinner" aria-label="作品加载中"></div></div>
     <div class="hud">
       <div class="showcase-deck" id="showcase-deck" aria-label="作品卡片展示"></div><div class="ring-gallery" id="ring-gallery" aria-hidden="true"><div class="ring-items" id="ring-items"></div></div>
       <div class="topbar"><div class="brand">冀晓禹<span>•</span>作品集</div><div class="meta">版本 2026.11.23</div></div>

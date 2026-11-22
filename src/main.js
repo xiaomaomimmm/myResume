@@ -303,6 +303,7 @@ const focusTitle = document.querySelector('#focus-title');
 const focusDescription = document.querySelector('#focus-description');
 const focusCounter = document.querySelector('#focus-counter');
 const focusClose = document.querySelector('#focus-close');
+const loadingLayer = document.querySelector('#loading-layer');
 const focusPrev = document.querySelector('#focus-prev');
 const focusNext = document.querySelector('#focus-next');
 const showcaseDeck = document.querySelector('#showcase-deck');
@@ -361,6 +362,27 @@ function mediaMarkup(project, mediaIndex, active = false) {
 function sideMarkup(project, mediaIndex) {
   return `<div class="side-media">${mediaMarkup(project, mediaIndex, false)}</div><div class="side-title">${displayName(project)}</div>`;
 }
+function setLoading(visible) {
+  loadingLayer?.classList.toggle('visible', visible);
+  loadingLayer?.setAttribute('aria-hidden', String(!visible));
+}
+function watchMediaLoading(container) {
+  if (!container) return;
+  const media = container.querySelector('video, img');
+  if (!media) { setLoading(false); return; }
+  const finish = () => setLoading(false);
+  if (media.tagName === 'VIDEO') {
+    if (media.readyState >= 3) { finish(); return; }
+    setLoading(true);
+    media.addEventListener('canplay', finish, { once: true });
+    media.addEventListener('error', finish, { once: true });
+  } else {
+    if (media.complete && media.naturalWidth > 0) { finish(); return; }
+    setLoading(true);
+    media.addEventListener('load', finish, { once: true });
+    media.addEventListener('error', finish, { once: true });
+  }
+}
 function openProjectFocus(project) {
   if (!project || !focusLayer) return;
   if (project.resume) { openResumeFocus(); return; }
@@ -369,6 +391,7 @@ function openProjectFocus(project) {
   focusPrev.hidden = focusEntries.length < 2;
   focusNext.hidden = focusEntries.length < 2;
   focusMedia.innerHTML = mediaMarkup(project, 0, true);
+  watchMediaLoading(focusMedia);
   focusTag.textContent = '';
   focusTitle.textContent = displayName(project);
   const description = copyFor(project).description || '';
@@ -390,6 +413,7 @@ function openResumeFocus() {
   if (!focusLayer) return;
   resumeFocusOpen = true;
   focusMedia.innerHTML = resumeMarkup();
+  setLoading(false);
   focusTag.textContent = '简历';
   focusTitle.textContent = resumeData().name;
   focusDescription.textContent = '';
