@@ -1,5 +1,7 @@
 import * as THREE from 'https://unpkg.com/three@0.162.0/build/three.module.js';
 
+const assetUrl = path => new URL(`../${path}`, import.meta.url).href;
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#111310');
 scene.fog = null;
@@ -199,7 +201,7 @@ function buildWeather(theme) {
   const isLeaves = theme.weather === 'leaves';
   const isSand = theme.weather === 'sand';
   const count = isRain ? 180 : isLeaves ? 150 : isSand ? 360 : 110;
-  const texturePath = isLeaves ? './assets/pixel-maple.svg' : theme.weather === 'snow' ? './assets/pixel-snowflake.svg' : '';
+  const texturePath = isLeaves ? assetUrl('assets/pixel-maple.svg') : theme.weather === 'snow' ? assetUrl('assets/pixel-snowflake.svg') : '';
   const particleTexture = texturePath ? new THREE.TextureLoader().load(texturePath) : isSand ? makeDustTexture() : null;
 
   if (isRain) {
@@ -303,7 +305,6 @@ const focusTitle = document.querySelector('#focus-title');
 const focusDescription = document.querySelector('#focus-description');
 const focusCounter = document.querySelector('#focus-counter');
 const focusClose = document.querySelector('#focus-close');
-const loadingLayer = document.querySelector('#loading-layer');
 const focusPrev = document.querySelector('#focus-prev');
 const focusNext = document.querySelector('#focus-next');
 const showcaseDeck = document.querySelector('#showcase-deck');
@@ -317,7 +318,7 @@ const ringYear = document.querySelector('#ring-year');
 const chineseNames = { 'spine-cartoonWord': 'Spine 卡通单词', 'spine-planet': 'Spine 星球', 'spine-slots': 'Spine 插槽动画', 'wordGame': '单词游戏', 'wordGameCartoon': '单词游戏角色', 'match3-buff': '三消增益', 'match3-heroSkill': '三消英雄技能' };
 let fileConfig = {};
 try {
-  const configResponse = await fetch('./portfolio-config.json', { cache: 'no-store' });
+  const configResponse = await fetch(new URL('../portfolio-config.json', import.meta.url), { cache: 'no-store' });
   if (configResponse.ok) fileConfig = await configResponse.json();
 } catch {}
 let copyOverrides = {};
@@ -356,29 +357,26 @@ function mediaMarkup(project, mediaIndex, active = false) {
   if (project.resume) return resumeMarkup();
   const source = project.files[mediaIndex % project.files.length];
   return source.endsWith('.gif')
-    ? (active ? `<img src="./myWorks/${source}" alt="${displayName(project)}" />` : `<canvas class="gif-still" data-src="./myWorks/${source}" aria-label="${displayName(project)}"></canvas>`)
-    : `<video src="./myWorks/${source}" ${active ? 'autoplay' : ''} muted loop playsinline></video>`;
+    ? (active ? `<img src="${assetUrl(`myWorks/${source}`)}" alt="${displayName(project)}" />` : `<canvas class="gif-still" data-src="${assetUrl(`myWorks/${source}`)}" aria-label="${displayName(project)}"></canvas>`)
+    : `<video src="${assetUrl(`myWorks/${source}`)}" ${active ? 'autoplay' : ''} muted loop playsinline></video>`;
 }
 function sideMarkup(project, mediaIndex) {
   return `<div class="side-media">${mediaMarkup(project, mediaIndex, false)}</div><div class="side-title">${displayName(project)}</div>`;
 }
-function setLoading(visible) {
-  loadingLayer?.classList.toggle('visible', visible);
-  loadingLayer?.setAttribute('aria-hidden', String(!visible));
-}
-function watchMediaLoading(container) {
-  if (!container) return;
-  const media = container.querySelector('video, img');
-  if (!media) { setLoading(false); return; }
-  const finish = () => setLoading(false);
+function watchCardMediaLoading(card) {
+  if (!card) return;
+  const media = card.querySelector('video, img');
+  const loading = card.querySelector('.ring-loading');
+  if (!media || !loading) return;
+  const finish = () => loading.classList.remove('visible');
   if (media.tagName === 'VIDEO') {
     if (media.readyState >= 3) { finish(); return; }
-    setLoading(true);
+    loading.classList.add('visible');
     media.addEventListener('canplay', finish, { once: true });
     media.addEventListener('error', finish, { once: true });
   } else {
     if (media.complete && media.naturalWidth > 0) { finish(); return; }
-    setLoading(true);
+    loading.classList.add('visible');
     media.addEventListener('load', finish, { once: true });
     media.addEventListener('error', finish, { once: true });
   }
@@ -391,7 +389,6 @@ function openProjectFocus(project) {
   focusPrev.hidden = focusEntries.length < 2;
   focusNext.hidden = focusEntries.length < 2;
   focusMedia.innerHTML = mediaMarkup(project, 0, true);
-  watchMediaLoading(focusMedia);
   focusTag.textContent = '';
   focusTitle.textContent = displayName(project);
   const description = copyFor(project).description || '';
@@ -413,7 +410,6 @@ function openResumeFocus() {
   if (!focusLayer) return;
   resumeFocusOpen = true;
   focusMedia.innerHTML = resumeMarkup();
-  setLoading(false);
   focusTag.textContent = '简历';
   focusTitle.textContent = resumeData().name;
   focusDescription.textContent = '';
@@ -503,10 +499,11 @@ function renderRingGallery(year) {
   ringEntries = yearEntries(year);
   ringState.frontIndex = -1;
   if (ringYear) ringYear.textContent = year;
-  ringItems.innerHTML = ringEntries.map(project => `<article class="ring-card" role="button" tabindex="0" aria-label="${escapeHtml(displayName(project))}"><div class="ring-media">${mediaMarkup(project, 0, true)}</div><div class="ring-name">${escapeHtml(displayName(project))}</div></article>`).join('');
+  ringItems.innerHTML = ringEntries.map(project => `<article class="ring-card" role="button" tabindex="0" aria-label="${escapeHtml(displayName(project))}"><div class="ring-media">${mediaMarkup(project, 0, true)}<div class="ring-loading" aria-hidden="true"></div></div><div class="ring-name">${escapeHtml(displayName(project))}</div></article>`).join('');
   ringItems.querySelectorAll('.ring-card').forEach((card, index) => {
     const cardMedia = card.querySelector('img, video');
     setCardRatio(card, cardMedia);
+    watchCardMediaLoading(card);
     if (cardMedia?.tagName === 'VIDEO') { cardMedia.removeAttribute('autoplay'); cardMedia.pause(); }
     card.addEventListener('click', event => {
       event.stopPropagation();
@@ -654,9 +651,20 @@ addEventListener('keydown', event => {
 addEventListener('keyup', event => { keys[event.key.toLowerCase()] = false; });
 document.querySelectorAll('[data-key]').forEach(button => {
   const key = button.dataset.key.toLowerCase();
-  button.addEventListener('pointerdown', () => { keys[key] = true; });
-  button.addEventListener('pointerup', () => { keys[key] = false; });
-  button.addEventListener('pointerleave', () => { keys[key] = false; });
+  const release = event => {
+    keys[key] = false;
+    if (event?.pointerId != null && button.hasPointerCapture?.(event.pointerId)) button.releasePointerCapture(event.pointerId);
+  };
+  button.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    button.setPointerCapture?.(event.pointerId);
+    keys[key] = true;
+  });
+  button.addEventListener('pointerup', release);
+  button.addEventListener('pointercancel', release);
+  button.addEventListener('lostpointercapture', () => { keys[key] = false; });
+  button.addEventListener('pointerleave', event => { if (event.pointerType !== 'touch') release(event); });
+  button.addEventListener('contextmenu', event => event.preventDefault());
 });
 
 function nearestYear() {

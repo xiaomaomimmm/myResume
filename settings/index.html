@@ -35,7 +35,8 @@ const key=project=>`${project.year}-${project.id}-${project.sequence}`;
 const escapeHtml=value=>String(value??'').replace(/[&<>\"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[char]));
 const resumeSettings=document.querySelector('#resume-settings');
 const resumeDefaults={name:'冀晓禹',role:'游戏特效师 / UI 动画与特效设计',contact:'18513418090　709168163@qq.com',education:'石家庄科技工程职业学院｜动漫设计与制作（大专）\n火星时代 118 期｜游戏特效',experience:'2014.09 — 至今\n游戏特效、UI 动画与特效制作、Spine 动画特效、Unity Animator、资源优化与项目协作。\n\n北京贝塔科技股份有限公司\n负责 UI 动画与特效制作、项目动画支援、资源优化和程序对接。',skills:'PS、AE、Spine、Unity、UE\n熟悉 UI 动画、UI 特效、休闲游戏视觉表现和程序协作。',summary:'工作积极认真，细心负责，善于分析问题、解决问题和与程序沟通。长期参与休闲游戏项目，主要方向是 2D UI 动画、UI 特效与 Spine 动画。'};
-let fileConfig={}; try { const response=await fetch('../portfolio-config.json',{cache:'no-store'}); if(response.ok) fileConfig=await response.json(); } catch {}
+const assetUrl=path=>new URL(`../${path}`,import.meta.url).href;
+let fileConfig={}; try { const response=await fetch(new URL('../portfolio-config.json',import.meta.url),{cache:'no-store'}); if(response.ok) fileConfig=await response.json(); } catch {}
 let resumeCopy={...(fileConfig.resume||{})}; try { resumeCopy={...resumeCopy,...(JSON.parse(localStorage.getItem('portfolio-resume-copy')||'{}')||{})}; } catch {}
 const resumeFields=[['name','姓名','input'],['role','求职方向','input'],['contact','联系方式','input'],['education','教育背景','textarea'],['experience','工作经验','textarea'],['skills','技能特长','textarea'],['summary','自我评价','textarea']];
 resumeFields.forEach(([id,label,type])=>{ const field=document.createElement('div'); field.className=`resume-field ${['education','experience','skills','summary'].includes(id)?'full':''}`; field.innerHTML=`<label for="resume-${id}">${label}</label><${type} id="resume-${id}" class="resume-copy" data-resume="${id}">${type==='textarea'?escapeHtml(resumeCopy[id]??resumeDefaults[id]):''}</${type}>`; if(type==='input') field.querySelector('input').value=resumeCopy[id]??resumeDefaults[id]; resumeSettings.appendChild(field); });
@@ -50,8 +51,8 @@ projects.forEach(project=>{
   const preview=project.resume
     ? '<div class="resume-preview">简历</div>'
     : project.type==='gif'
-      ? `<img src="../myWorks/${project.file}" alt="${escapeHtml(project.name)} ${project.sequence}">`
-      : `<video src="../myWorks/${project.file}" muted loop autoplay playsinline></video>`;
+      ? `<img src="${assetUrl(`myWorks/${project.file}`)}" alt="${escapeHtml(project.name)} ${project.sequence}">`
+      : `<video src="${assetUrl(`myWorks/${project.file}`)}" muted loop autoplay playsinline></video>`;
   const defaultTitle=`${project.name} ${String(project.sequence).padStart(2,'0')}`;
   row.innerHTML=`<div class="preview">${preview}</div><div class="field"><label>作品标题</label><input class="title" value="${escapeHtml(copy.title||defaultTitle)}"><label>卡片文案</label><textarea class="description" placeholder="这张具体作品的说明">${escapeHtml(copy.description||'')}</textarea></div>`;
   editor.appendChild(row);

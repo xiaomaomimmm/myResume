@@ -13,6 +13,11 @@
       * { box-sizing:border-box; }
       html, body { margin:0; min-height:100%; background:#111310; color:var(--ink); font-family:Manrope,system-ui,sans-serif; }
       body { overflow:hidden; }
+      .file-protocol-notice { display:none; position:fixed; inset:0; z-index:999; place-items:center; padding:28px; background:#111310; color:#f4efe7; font-family:Manrope,system-ui,sans-serif; text-align:center; }
+      .file-protocol-notice-inner { max-width:520px; }
+      .file-protocol-notice h1 { margin:0 0 14px; font-size:28px; letter-spacing:-.06em; }
+      .file-protocol-notice p { margin:8px 0; color:#a7a39d; font-size:14px; line-height:1.7; }
+      .file-protocol-notice code { color:#d9ff65; }
       #app { height:100vh; position:relative; }
       canvas { display:block; }
       .hud { position:fixed; inset:0; pointer-events:none; z-index:2; }
@@ -55,13 +60,13 @@
       .ring-card .ring-name { position:absolute; top:-18px; left:0; max-width:100%; color:#fff; font-size:10px; line-height:1.15; text-shadow:0 1px 5px rgba(0,0,0,.9); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .side-card,.panel { display:none !important; }
       .showcase-deck { display:none !important; }
-      .loading-layer { position:fixed; inset:0; z-index:30; display:grid; place-items:center; background:rgba(5,7,5,.26); backdrop-filter:blur(3px); opacity:0; pointer-events:none; transition:opacity .2s ease; }
-      .loading-layer.visible { opacity:1; }
-      .loading-spinner { width:54px; height:54px; border:3px solid rgba(244,239,231,.22); border-top-color:var(--accent); border-radius:50%; animation:loading-spin .8s linear infinite; box-shadow:0 0 24px color-mix(in srgb, var(--accent) 35%, transparent); }
+      .ring-loading { position:absolute; inset:0; z-index:2; display:grid; place-items:center; background:rgba(12,14,11,.34); opacity:0; pointer-events:none; transition:opacity .18s ease; }
+      .ring-loading.visible { opacity:1; }
+      .ring-loading::after { content:''; width:22px; height:22px; border:2px solid rgba(244,239,231,.28); border-top-color:var(--accent); border-radius:50%; animation:loading-spin .8s linear infinite; box-shadow:0 0 14px color-mix(in srgb, var(--accent) 35%, transparent); }
       @keyframes loading-spin { to { transform:rotate(360deg); } }
-      .focus-layer { inset:0; z-index:20; display:grid; place-items:center; padding:32px; background:rgba(5,7,5,.78); backdrop-filter:blur(18px); opacity:0; pointer-events:none; transition:opacity .28s ease; }
+      .focus-layer { position:fixed; inset:0; z-index:1000; isolation:isolate; display:grid; place-items:center; padding:32px; background:rgba(5,7,5,.78); backdrop-filter:blur(18px); opacity:0; pointer-events:none; transition:opacity .28s ease; }
       .focus-layer.visible { opacity:1; pointer-events:auto; }
-      .focus-card { position:relative; width:min(50vw,700px); height:min(94vh,1000px); max-height:calc(100vh - 64px); display:flex; flex-direction:column; padding:18px; border:1px solid rgba(244,239,231,.28); background:rgba(17,19,16,.96); box-shadow:0 24px 80px rgba(0,0,0,.42); transform:translateY(18px) scale(.96); transition:transform .34s cubic-bezier(.2,.8,.2,1); }
+      .focus-card { position:relative; z-index:1; width:min(50vw,700px); height:min(94vh,1000px); max-height:calc(100vh - 64px); display:flex; flex-direction:column; padding:18px; border:1px solid rgba(244,239,231,.28); background:rgba(17,19,16,.96); box-shadow:0 24px 80px rgba(0,0,0,.42); transform:translateY(18px) scale(.96); transition:transform .34s cubic-bezier(.2,.8,.2,1); }
       .focus-layer.visible .focus-card { transform:translateY(0) scale(1); }
       .focus-close { position:absolute; top:-17px; right:-17px; z-index:2; width:34px; height:34px; border:1px solid var(--line); border-radius:50%; background:rgba(17,19,16,.72); color:var(--ink); cursor:pointer; font-size:20px; line-height:1; }
       .focus-nav { position:absolute; top:50%; z-index:3; width:42px; height:64px; display:grid; place-items:center; padding:0 0 8px; border:1px solid rgba(244,239,231,.28); border-radius:12px; background:rgba(17,19,16,.62); color:var(--ink); cursor:pointer; font:34px/1 Arial,sans-serif; transform:translateY(-50%); transition:background .2s ease, transform .2s ease; }
@@ -123,8 +128,8 @@
       .resume-content p { margin:8px 0; color:var(--ink); }
       .panel .media-frame video, .panel .media-frame img { object-fit:contain; background:rgba(0,0,0,.18); }
 
-      .mobile-controls { display:grid; grid-template-columns:repeat(2, 44px); gap:5px; position:absolute; left:32px; bottom:28px; pointer-events:auto; }
-      .mobile-controls button { width:44px; height:44px; border:1px solid rgba(244,239,231,.34); background:rgba(17,19,16,.38); color:var(--ink); border-radius:6px; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); font-size:18px; cursor:pointer; transition:background .2s ease, transform .2s ease; } .mobile-controls button:active { background:rgba(244,239,231,.22); transform:scale(.94); }
+      .mobile-controls { display:grid; grid-template-columns:repeat(2, 44px); gap:5px; position:absolute; left:32px; bottom:28px; z-index:12; pointer-events:auto; touch-action:none; user-select:none; -webkit-user-select:none; }
+      .mobile-controls button { width:44px; height:44px; border:1px solid rgba(244,239,231,.34); background:rgba(17,19,16,.38); color:var(--ink); border-radius:6px; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); font-size:18px; cursor:pointer; transition:background .2s ease, transform .2s ease; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; } .mobile-controls button:active { background:rgba(244,239,231,.22); transform:scale(.94); }
       @media (max-width:900px) { .panel { width:50vw; } .side-card { width:22vw; } .side-card.left { left:1.5%; } .side-card.right { right:1.5%; } }
       @media (max-width:760px) { .topbar { left:16px; right:16px; top:16px; } .brand { right:0; font-size:16px; } .meta { right:16px; bottom:16px; font-size:10px; } .panel { width:50vw; top:50%; } .side-card { width:28vw; padding:6px; } .side-card.left { left:-4%; } .side-card.right { right:-4%; } .side-title { font-size:10px; } .side-meta { font-size:8px; } .media-frame { aspect-ratio:1; } .mobile-controls { left:16px; bottom:16px; } }
       @media (max-width:760px) { .resume-grid { grid-template-columns:1fr; } .resume-head { flex-direction:column; } .resume-contact { text-align:left; } }
@@ -133,7 +138,18 @@
   </head>
   <body>
     <div id="app"></div>
-    <div class="loading-layer" id="loading-layer" aria-hidden="true"><div class="loading-spinner" aria-label="作品加载中"></div></div>
+    <div class="file-protocol-notice" id="file-protocol-notice">
+      <div class="file-protocol-notice-inner">
+        <h1>请通过本地预览打开作品集</h1>
+        <p>直接双击 index.html 会被浏览器拦截模块和作品资源，所以页面无法显示。</p>
+        <p>请双击项目里的 <code>本地预览.command</code>，它会自动启动并打开网页。</p>
+      </div>
+    </div>
+    <script>
+      if (location.protocol === 'file:') {
+        document.getElementById('file-protocol-notice').style.display = 'grid';
+      }
+    </script>
     <div class="hud">
       <div class="showcase-deck" id="showcase-deck" aria-label="作品卡片展示"></div><div class="ring-gallery" id="ring-gallery" aria-hidden="true"><div class="ring-items" id="ring-items"></div></div>
       <div class="topbar"><div class="brand">冀晓禹<span>•</span>作品集</div><div class="meta">版本 2026.11.23</div></div>
