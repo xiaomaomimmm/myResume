@@ -1,0 +1,301 @@
+{
+  "projects": {
+    "2023-spine-cartoonWord-1": {
+      "title": "Spine 卡通角色动画",
+      "description": "橄榄球手"
+    },
+    "2023-spine-cartoonWord-2": {
+      "title": "Spine 卡通角色动画",
+      "description": "橄榄球裁判"
+    },
+    "2023-spine-cartoonWord-3": {
+      "title": "Spine 卡通角色动画",
+      "description": "热狗外卖员"
+    },
+    "2023-spine-planet-4": {
+      "title": "Spine 星球动画",
+      "description": "蓝色星球"
+    },
+    "2023-spine-planet-5": {
+      "title": "Spine 星球动画",
+      "description": "软糖星球"
+    },
+    "2023-spine-planet-6": {
+      "title": "Spine 星球动画",
+      "description": "芝士星球"
+    },
+    "2023-spine-planet-7": {
+      "title": "Spine 星球动画",
+      "description": "糖果星球"
+    },
+    "2023-spine-planet-8": {
+      "title": "Spine 星球动画",
+      "description": "布艺星球"
+    },
+    "2023-spine-planet-9": {
+      "title": "Spine 星球动画",
+      "description": "时间星球"
+    },
+    "2023-spine-planet-10": {
+      "title": "Spine 星球动画",
+      "description": "折纸星球"
+    },
+    "2023-spine-slots-11": {
+      "title": "Spine Slots宝箱动画",
+      "description": ""
+    },
+    "2023-spine-slots-12": {
+      "title": "Spine Slots礼包动画",
+      "description": ""
+    },
+    "2023-spine-slots-13": {
+      "title": "Spine Slots机器动画",
+      "description": ""
+    },
+    "2023-spine-slots-14": {
+      "title": "Spine Slots机器动画",
+      "description": ""
+    },
+    "2023-spine-slots-15": {
+      "title": "Spine Slots机器动画",
+      "description": ""
+    },
+    "2023-spine-slots-16": {
+      "title": "Spine Slots机器动画",
+      "description": ""
+    },
+    "2023-wordGame-17": {
+      "title": "Word游戏",
+      "description": ""
+    },
+    "2023-wordGame-18": {
+      "title": "Word游戏 Bingo礼包",
+      "description": ""
+    },
+    "2023-wordGame-19": {
+      "title": "Word游戏 Bingo礼包",
+      "description": ""
+    },
+    "2023-wordGame-20": {
+      "title": "Word游戏 蝴蝶出现动画",
+      "description": ""
+    },
+    "2023-wordGameCartoon-21": {
+      "title": "卡通Word游戏 宝箱动画",
+      "description": ""
+    },
+    "2023-wordGameCartoon-22": {
+      "title": "卡通Word游戏 转盘",
+      "description": ""
+    },
+    "2023-wordGameCartoon-23": {
+      "title": "卡通Word游戏 转盘",
+      "description": ""
+    },
+    "2023-wordGameCartoon-24": {
+      "title": "卡通Word游戏 Loading",
+      "description": ""
+    },
+    "2023-wordGameCartoon-25": {
+      "title": "卡通Word游戏 小猪宝箱",
+      "description": ""
+    },
+    "2023-wordGameCartoon-26": {
+      "title": "卡通Word游戏 拼图完成",
+      "description": ""
+    },
+    "2023-wordGameCartoon-27": {
+      "title": "卡通Word游戏 普通宝箱打开",
+      "description": ""
+    },
+    "2023-wordGameCartoon-28": {
+      "title": "卡通Word游戏 活动",
+      "description": ""
+    },
+    "2025-match3-buff-1": {
+      "title": "三消游戏 buff特效",
+      "description": "加攻击力"
+    },
+    "2025-match3-buff-2": {
+      "title": "三消游戏 buff特效",
+      "description": "加防御力"
+    },
+    "2025-match3-buff-3": {
+      "title": "三消游戏 buff特效",
+      "description": "加能量"
+    },
+    "2025-match3-buff-4": {
+      "title": "三消游戏 buff特效",
+      "description": "加血量"
+    },
+    "2025-match3-buff-5": {
+      "title": "三消游戏 buff特效",
+      "description": "加状态"
+    },
+    "2025-match3-buff-6": {
+      "title": "三消游戏 buff特效",
+      "description": "出血"
+    },
+    "2025-match3-buff-7": {
+      "title": "三消游戏 buff特效",
+      "description": "燃烧"
+    },
+    "2025-match3-buff-8": {
+      "title": "三消游戏 buff特效",
+      "description": "暴击减少"
+    },
+    "2025-match3-buff-9": {
+      "title": "三消游戏 buff特效",
+      "description": "复活"
+    },
+    "2025-match3-buff-10": {
+      "title": "三消游戏 buff特效",
+      "description": "中毒"
+    },
+    "2025-match3-buff-11": {
+      "title": "三消游戏 buff特效",
+      "description": "机关"
+    },
+    "2025-match3-buff-12": {
+      "title": "三消游戏 buff特效",
+      "description": "能量"
+    },
+    "2025-match3-buff-13": {
+      "title": "三消游戏 buff特效",
+      "description": "增益"
+    },
+    "2025-match3-buff-14": {
+      "title": "三消游戏 buff特效",
+      "description": ""
+    },
+    "2025-match3-buff-15": {
+      "title": "三消游戏 buff特效",
+      "description": ""
+    },
+    "2025-match3-buff-16": {
+      "title": "三消游戏 buff特效",
+      "description": ""
+    },
+    "2025-match3-buff-17": {
+      "title": "三消游戏 buff特效",
+      "description": ""
+    },
+    "2025-match3-buff-18": {
+      "title": "三消游戏 buff特效",
+      "description": ""
+    },
+    "2025-match3-buff-19": {
+      "title": "三消游戏 buff特效",
+      "description": ""
+    },
+    "2025-match3-heroSkill-20": {
+      "title": "三消游戏 hero技能特效",
+      "description": "暗黑法杖"
+    },
+    "2025-match3-heroSkill-21": {
+      "title": "三消游戏 hero技能特效",
+      "description": "长枪穿刺"
+    },
+    "2025-match3-heroSkill-22": {
+      "title": "三消游戏 hero技能特效",
+      "description": "三重金刚爪"
+    },
+    "2025-match3-heroSkill-23": {
+      "title": "三消游戏 hero技能特效",
+      "description": "星辰能量"
+    },
+    "2025-match3-heroSkill-24": {
+      "title": "三消游戏 hero技能特效",
+      "description": "弯刀连斩"
+    },
+    "2025-match3-heroSkill-25": {
+      "title": "三消游戏 hero技能特效",
+      "description": "三枪惊魂"
+    },
+    "2025-match3-heroSkill-26": {
+      "title": "三消游戏 hero技能特效",
+      "description": "佐罗增益"
+    },
+    "2025-match3-heroSkill-27": {
+      "title": "三消游戏 hero技能特效",
+      "description": "黄金剑连刺"
+    },
+    "2025-match3-heroSkill-28": {
+      "title": "三消游戏 hero技能特效",
+      "description": "激光扫射"
+    },
+    "2025-match3-heroSkill-29": {
+      "title": "三消游戏 hero技能特效",
+      "description": "火焰重拳"
+    },
+    "2025-match3-heroSkill-30": {
+      "title": "三消游戏 hero技能特效",
+      "description": "火焰钩镰斩"
+    },
+    "2025-match3-heroSkill-31": {
+      "title": "三消游戏 hero技能特效",
+      "description": "南瓜突袭"
+    },
+    "2025-match3-heroSkill-32": {
+      "title": "三消游戏 hero技能特效",
+      "description": "致命毒击"
+    },
+    "2025-match3-heroSkill-33": {
+      "title": "三消游戏 hero技能特效",
+      "description": "毒炮二重奏"
+    },
+    "2026-wordGame-1": {
+      "title": "CardWord游戏",
+      "description": "解锁动效"
+    },
+    "2026-wordGame-2": {
+      "title": "CardWord游戏",
+      "description": "解锁教程"
+    },
+    "2026-wordGame-3": {
+      "title": "CardWord游戏",
+      "description": "不同卡背特效"
+    },
+    "2026-wordGame-4": {
+      "title": "CardWord游戏",
+      "description": "排行榜动效"
+    },
+    "2026-wordGame-5": {
+      "title": "CardWord游戏",
+      "description": "吉祥物激励动画"
+    },
+    "2026-wordGame-6": {
+      "title": "CardWord游戏",
+      "description": "吉祥物激励动画"
+    },
+    "2026-wordGame-7": {
+      "title": "CardWord游戏",
+      "description": ""
+    },
+    "2026-wordGame-8": {
+      "title": "CardWord游戏",
+      "description": "段位升级动效"
+    },
+    "2026-wordGame-9": {
+      "title": "CardWord游戏",
+      "description": "活动结算动效"
+    },
+    "2026-wordGame-10": {
+      "title": "CardWord游戏",
+      "description": "头像框升级动效"
+    },
+    "2027-resume-1": {
+      "title": "我的简历",
+      "description": ""
+    }
+  },
+  "resume": {
+    "name": "冀晓禹",
+    "role": "游戏特效师 / UI 动画与特效设计",
+    "contact": "18513418090　709168163@qq.com",
+    "education": "火星时代 118 期｜游戏特效\n\n石家庄科技工程职业学院｜动漫设计与制作（大专）",
+    "experience": "北京乐信圣文科技有限公司\n2024.4-2026.11\nUI 动画与特效制作，Spine 动画特效，Unity 角色技能特效，资源优化与项目协作\n\n北京百星互娱科技有限公司\n2023.4-2023.12\n基础场景搭建，UI 动画与特效制作，资源优化与项目协作\n\n北京贝塔科技股份有限公司\n2016.11-2023.4\nUI 动画，Unity 特效制作，项目动画支援，资源优化和程序对接\n\n北京泰和大家科技有限公司\n2015.1-2016.10\nUI 动画，Unity 场景动效",
+    "skills": "PS，AE，Spine，Unity，AI 工具\n熟悉 UI 动画，UI 特效，休闲游戏视觉表现和程序协作",
+    "summary": "善于分析问题，解决问题和与程序沟通，长期参与休闲游戏项目，主要方向是 2D UI 动画，UI 特效与 Spine 动画"
+  }
+}
