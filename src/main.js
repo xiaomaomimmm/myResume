@@ -199,7 +199,7 @@ function buildWeather(theme) {
   const isLeaves = theme.weather === 'leaves';
   const isSand = theme.weather === 'sand';
   const count = isRain ? 180 : isLeaves ? 150 : isSand ? 360 : 110;
-  const texturePath = isLeaves ? '/assets/pixel-maple.svg' : theme.weather === 'snow' ? '/assets/pixel-snowflake.svg' : '';
+  const texturePath = isLeaves ? './assets/pixel-maple.svg' : theme.weather === 'snow' ? './assets/pixel-snowflake.svg' : '';
   const particleTexture = texturePath ? new THREE.TextureLoader().load(texturePath) : isSand ? makeDustTexture() : null;
 
   if (isRain) {
@@ -316,7 +316,7 @@ const ringYear = document.querySelector('#ring-year');
 const chineseNames = { 'spine-cartoonWord': 'Spine 卡通单词', 'spine-planet': 'Spine 星球', 'spine-slots': 'Spine 插槽动画', 'wordGame': '单词游戏', 'wordGameCartoon': '单词游戏角色', 'match3-buff': '三消增益', 'match3-heroSkill': '三消英雄技能' };
 let fileConfig = {};
 try {
-  const configResponse = await fetch('/portfolio-config.json', { cache: 'no-store' });
+  const configResponse = await fetch('./portfolio-config.json', { cache: 'no-store' });
   if (configResponse.ok) fileConfig = await configResponse.json();
 } catch {}
 let copyOverrides = {};
@@ -355,8 +355,8 @@ function mediaMarkup(project, mediaIndex, active = false) {
   if (project.resume) return resumeMarkup();
   const source = project.files[mediaIndex % project.files.length];
   return source.endsWith('.gif')
-    ? (active ? `<img src="/myWorks/${source}" alt="${displayName(project)}" />` : `<canvas class="gif-still" data-src="/myWorks/${source}" aria-label="${displayName(project)}"></canvas>`)
-    : `<video src="/myWorks/${source}" ${active ? 'autoplay' : ''} muted loop playsinline></video>`;
+    ? (active ? `<img src="./myWorks/${source}" alt="${displayName(project)}" />` : `<canvas class="gif-still" data-src="./myWorks/${source}" aria-label="${displayName(project)}"></canvas>`)
+    : `<video src="./myWorks/${source}" ${active ? 'autoplay' : ''} muted loop playsinline></video>`;
 }
 function sideMarkup(project, mediaIndex) {
   return `<div class="side-media">${mediaMarkup(project, mediaIndex, false)}</div><div class="side-title">${displayName(project)}</div>`;
