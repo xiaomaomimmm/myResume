@@ -284,20 +284,8 @@ function applyTheme(year) {
 const keys = {};
 applyTheme('2023');
 let currentYear = null;
-let cardsFlyingAway = false;
 let inYearContact = false;
-let activeProjectIndex = 0;
 let currentYearEntries = [];
-let activeProject = null;
-let lastPanelKey = '';
-const panel = document.querySelector('#project-panel');
-const mediaFrame = document.querySelector('#media-frame');
-const panelTag = document.querySelector('#panel-tag');
-const panelTitle = document.querySelector('#panel-title');
-const panelDescription = document.querySelector('#panel-description');
-const panelCounter = document.querySelector('#panel-counter');
-const sideLeft = document.querySelector('#side-left');
-const sideRight = document.querySelector('#side-right');
 const focusLayer = document.querySelector('#focus-layer');
 const focusMedia = document.querySelector('#focus-media');
 const focusTag = document.querySelector('#focus-tag');
@@ -307,13 +295,11 @@ const focusCounter = document.querySelector('#focus-counter');
 const focusClose = document.querySelector('#focus-close');
 const focusPrev = document.querySelector('#focus-prev');
 const focusNext = document.querySelector('#focus-next');
-const showcaseDeck = document.querySelector('#showcase-deck');
 const ringGallery = document.querySelector('#ring-gallery');
 let resumeFocusOpen = false;
 let focusEntries = [];
 let focusIndex = -1;
 const ringItems = document.querySelector('#ring-items');
-const ringYear = document.querySelector('#ring-year');
 
 const chineseNames = { 'spine-cartoonWord': 'Spine 卡通单词', 'spine-planet': 'Spine 星球', 'spine-slots': 'Spine 插槽动画', 'wordGame': '单词游戏', 'wordGameCartoon': '单词游戏角色', 'match3-buff': '三消增益', 'match3-heroSkill': '三消英雄技能' };
 let fileConfig = {};
@@ -350,18 +336,13 @@ function resumeMarkup() {
   const data = resumeData();
   return `<div class="resume-content"><div class="resume-head"><div><h3>${escapeHtml(data.name)}</h3><p class="resume-role">${escapeHtml(data.role)}</p></div><div class="resume-contact">${escapeHtml(data.contact).replace(/　/g, '<br>')}</div></div><div class="resume-grid"><section><h4>教育背景</h4><p>${escapeHtml(data.education).replace(/\n/g, '<br>')}</p></section><section><h4>工作经验</h4><p>${escapeHtml(data.experience).replace(/\n/g, '<br>')}</p></section><section><h4>技能特长</h4><p>${escapeHtml(data.skills).replace(/\n/g, '<br>')}</p></section><section><h4>自我评价</h4><p>${escapeHtml(data.summary).replace(/\n/g, '<br>')}</p></section></div></div>`;
 }
-function panelTagText(project) {
-  return displayName(project);
-}
-function mediaMarkup(project, mediaIndex, active = false) {
-  if (project.resume) return resumeMarkup();
-  const source = project.files[mediaIndex % project.files.length];
-  return source.endsWith('.gif')
-    ? (active ? `<img src="${assetUrl(`myWorks/${source}`)}" alt="${displayName(project)}" />` : `<canvas class="gif-still" data-src="${assetUrl(`myWorks/${source}`)}" aria-label="${displayName(project)}"></canvas>`)
-    : `<video src="${assetUrl(`myWorks/${source}`)}" ${active ? 'autoplay' : ''} muted loop playsinline></video>`;
-}
-function sideMarkup(project, mediaIndex) {
-  return `<div class="side-media">${mediaMarkup(project, mediaIndex, false)}</div><div class="side-title">${displayName(project)}</div>`;
+function mediaMarkup(project, autoplay) {
+  const source = project.files[0];
+  const url = assetUrl(`myWorks/${source}`);
+  if (source.endsWith('.gif')) {
+    return `<img src="${url}" alt="${escapeHtml(displayName(project))}" />`;
+  }
+  return `<video src="${url}" ${autoplay ? 'autoplay' : ''} muted loop playsinline></video>`;
 }
 function watchCardMediaLoading(card) {
   if (!card) return;
@@ -388,7 +369,7 @@ function openProjectFocus(project) {
   focusIndex = Math.max(0, focusEntries.findIndex(entry => entry.sequence === project.sequence));
   focusPrev.hidden = focusEntries.length < 2;
   focusNext.hidden = focusEntries.length < 2;
-  focusMedia.innerHTML = mediaMarkup(project, 0, true);
+  focusMedia.innerHTML = mediaMarkup(project, true);
   focusTag.textContent = '';
   focusTitle.textContent = displayName(project);
   const description = copyFor(project).description || '';
@@ -439,32 +420,29 @@ addEventListener('keydown', event => {
   if (event.key === 'ArrowRight') { event.preventDefault(); cycleFocusProject(1); }
 });
 const ringState = { angle: 0, dragging: false, lastX: 0, moved: false, frontIndex: -1 };
-let ringEntries = [];
+const ringGalleries = new Map();
+let activeRing = null;
 function syncRingMedia(frontIndex) {
-  if (frontIndex === ringState.frontIndex) return;
+  if (!activeRing || frontIndex === ringState.frontIndex) return;
+  const previous = activeRing.cards[ringState.frontIndex];
+  previous?.classList.remove('is-front');
+  previous?.querySelector('video')?.pause();
+
   ringState.frontIndex = frontIndex;
-  ringItems?.querySelectorAll('.ring-card').forEach((card, index) => {
-    const video = card.querySelector('video');
-    const isFront = index === frontIndex;
-    card.classList.toggle('is-front', isFront);
-    if (!video) return;
-    if (isFront) {
-      video.play().catch(() => {});
-    } else {
-      video.pause();
-      try { video.currentTime = 0; } catch {}
-    }
-  });
+  const front = activeRing.cards[frontIndex];
+  front?.classList.add('is-front');
+  front?.querySelector('video')?.play().catch(() => {});
 }
 function updateRingCardTransforms() {
-  if (!ringItems || !ringEntries.length) return;
+  if (!activeRing?.cards.length) return;
+  const { cards } = activeRing;
   const cardWidth = Math.min(132, Math.max(86, innerWidth * .1));
-  const radiusX = Math.max(innerWidth * .5, ringEntries.length * cardWidth * .3);
+  const radiusX = Math.max(innerWidth * .5, cards.length * cardWidth * .3);
   const radiusY = Math.min(innerHeight * .22, 180);
   let frontIndex = 0;
   let frontDepth = -1;
-  ringItems.querySelectorAll('.ring-card').forEach((card, index) => {
-    const theta = (Math.PI * 2 * index / ringEntries.length) + ringState.angle;
+  cards.forEach((card, index) => {
+    const theta = (Math.PI * 2 * index / cards.length) + ringState.angle;
     const depth = (Math.cos(theta) + 1) / 2;
     if (depth > frontDepth) { frontDepth = depth; frontIndex = index; }
     const x = Math.sin(theta) * radiusX;
@@ -496,24 +474,36 @@ function setCardRatio(card, media) {
 function renderRingGallery(year) {
   if (year === '2027') { setRingVisible(false); return; }
   if (!ringGallery || !ringItems) return;
-  ringEntries = yearEntries(year);
-  ringState.frontIndex = -1;
-  if (ringYear) ringYear.textContent = year;
-  ringItems.innerHTML = ringEntries.map(project => `<article class="ring-card" role="button" tabindex="0" aria-label="${escapeHtml(displayName(project))}"><div class="ring-media">${mediaMarkup(project, 0, true)}<div class="ring-loading" aria-hidden="true"></div></div><div class="ring-name">${escapeHtml(displayName(project))}</div></article>`).join('');
-  ringItems.querySelectorAll('.ring-card').forEach((card, index) => {
-    const cardMedia = card.querySelector('img, video');
-    setCardRatio(card, cardMedia);
-    watchCardMediaLoading(card);
-    if (cardMedia?.tagName === 'VIDEO') { cardMedia.removeAttribute('autoplay'); cardMedia.pause(); }
-    card.addEventListener('click', event => {
-      event.stopPropagation();
-      if (!ringState.moved) openProjectFocus(ringEntries[index]);
+  let gallery = ringGalleries.get(year);
+  if (!gallery) {
+    const group = document.createElement('div');
+    group.hidden = true;
+    const entries = yearEntries(year);
+    group.innerHTML = entries.map(project => `<article class="ring-card" role="button" tabindex="0" aria-label="${escapeHtml(displayName(project))}"><div class="ring-media">${mediaMarkup(project, false)}<div class="ring-loading" aria-hidden="true"></div></div><div class="ring-name">${escapeHtml(displayName(project))}</div></article>`).join('');
+    const cards = Array.from(group.querySelectorAll('.ring-card'));
+    cards.forEach((card, index) => {
+      setCardRatio(card, card.querySelector('img, video'));
+      watchCardMediaLoading(card);
+      card.addEventListener('click', () => {
+        if (!ringState.moved) openProjectFocus(entries[index]);
+      });
+      card.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openProjectFocus(entries[index]);
+        }
+      });
     });
-    card.addEventListener('pointerup', event => {
-      if (!ringState.moved) { event.stopPropagation(); openProjectFocus(ringEntries[index]); }
-    });
-    card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openProjectFocus(ringEntries[index]); } });
-  });
+    gallery = { group, cards };
+    ringGalleries.set(year, gallery);
+    ringItems.appendChild(group);
+  }
+  if (activeRing !== gallery) {
+    syncRingMedia(-1);
+    if (activeRing) activeRing.group.hidden = true;
+    activeRing = gallery;
+  }
+  gallery.group.hidden = false;
   updateRingCardTransforms();
 }
 function startRingInteraction() {
@@ -548,101 +538,9 @@ function animateRing() {
 animateRing();
 function setRingVisible(visible) {
   if (!ringGallery) return;
+  if (!visible) syncRingMedia(-1);
   ringGallery.classList.toggle('visible', visible);
   ringGallery.setAttribute('aria-hidden', String(!visible));
-}
-function renderShowcaseDeck(year) {
-  if (!showcaseDeck) return;
-  const entries = yearEntries(year);
-  if (!entries.length) { showcaseDeck.innerHTML = ''; return; }
-  const center = currentYear === year && currentYearEntries.length ? activeProjectIndex : 0;
-  const offsets = [0, -1, 1, -2, 2];
-  const picks = offsets.map(offset => entries[(center + offset + entries.length) % entries.length]);
-  showcaseDeck.innerHTML = picks.map(project => `<article class="showcase-card" data-project-key="${project.year}-${project.title}-${project.sequence}"><div class="showcase-media">${mediaMarkup(project, 0, true)}</div><div class="showcase-label">${displayName(project)}</div></article>`).join('');
-  showcaseDeck.querySelectorAll('.showcase-card').forEach((card, index) => {
-    card.addEventListener('click', () => openProjectFocus(picks[index]));
-  });
-}
-function hydrateSideGifs() {
-  document.querySelectorAll('.gif-still').forEach(canvas => {
-    const image = new Image();
-    image.onload = () => {
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
-      canvas.getContext('2d').drawImage(image, 0, 0);
-    };
-    image.src = canvas.dataset.src;
-  });
-}
-function renderGallery(direction = 0) {
-  if (!activeProject || !currentYear) return;
-  const yearProjects = yearEntries(currentYear);
-  const total = yearProjects.length;
-  const previous = yearProjects[(activeProjectIndex - 1 + total) % total];
-  const next = yearProjects[(activeProjectIndex + 1) % total];
-  sideLeft.innerHTML = sideMarkup(previous, 0);
-  sideRight.innerHTML = sideMarkup(next, 0);
-  sideLeft.style.setProperty('--shift', '0px');
-  sideRight.style.setProperty('--shift', '0px');
-  sideLeft.style.setProperty('--scale', '.78');
-  sideRight.style.setProperty('--scale', '.78');
-  sideLeft.classList.remove('side-enter-left', 'side-enter-right');
-  sideRight.classList.remove('side-enter-left', 'side-enter-right');
-  void sideLeft.offsetWidth;
-  if (direction > 0) {
-    sideRight.classList.add('side-enter-right');
-  } else if (direction < 0) {
-    sideLeft.classList.add('side-enter-left');
-  }
-  sideLeft.classList.add('visible');
-  sideRight.classList.add('visible');
-  sideLeft.onclick = () => openProjectFocus(previous);
-  sideRight.onclick = () => openProjectFocus(next);
-  hydrateSideGifs();
-}
-function showProject(project, mediaIndex = 0, drop = true, direction = 0) {
-  if (!project) return;
-  activeProject = project;
-  const yearProjects = currentYear === project.year && currentYearEntries.length ? currentYearEntries : yearEntries(project.year);
-  if (currentYear === project.year && currentYearEntries.length === 0) currentYearEntries = yearProjects;
-  activeProjectIndex = Math.max(0, yearProjects.findIndex(entry => entry.sequence === project.sequence));
-  const source = project.files[0] || project.title;
-  const key = `${project.year}-${project.title}-${source}`;
-  mediaFrame.innerHTML = mediaMarkup(project, mediaIndex, true);
-  panel.classList.toggle('resume-panel', Boolean(project.resume));
-  panelTag.textContent = panelTagText(project);
-  panelTitle.textContent = displayName(project);
-  const customDescription = copyFor(project).description || '';
-  panelDescription.textContent = customDescription;
-  panelDescription.style.display = customDescription ? 'block' : 'none';
-  panelCounter.textContent = `${String(project.sequence).padStart(2, '0')} / ${String(project.total).padStart(2, '0')}`;
-  panel.classList.add('visible');
-  panel.classList.remove('slide-next', 'slide-prev');
-  if (direction > 0) panel.classList.add('slide-next');
-  if (direction < 0) panel.classList.add('slide-prev');
-  renderGallery(direction);
-  renderRingGallery(project.year);
-  panel.onclick = event => {
-    if (event.target.closest('button, a')) return;
-    openProjectFocus(project);
-  };
-  if (drop && key !== lastPanelKey) {
-    panel.classList.remove('drop', 'slide-next', 'slide-prev');
-    void panel.offsetWidth;
-    panel.classList.add('drop');
-  } else if (!drop && direction !== 0) {
-    panel.classList.remove('drop', 'slide-next', 'slide-prev');
-    void panel.offsetWidth;
-    panel.classList.add(direction > 0 ? 'slide-next' : 'slide-prev');
-  }
-  lastPanelKey = key;
-}
-function cycleProject(direction) {
-  if (!currentYear || !inYearContact) return;
-  const yearProjects = currentYearEntries.length ? currentYearEntries : yearEntries(currentYear);
-  if (!yearProjects.length) return;
-  activeProjectIndex = (activeProjectIndex + direction + yearProjects.length) % yearProjects.length;
-  showProject(yearProjects[activeProjectIndex], 0, false, direction);
 }
 addEventListener('keydown', event => {
   const key = event.key.toLowerCase();
@@ -694,9 +592,6 @@ function tick() {
     if (currentYear !== year.year) {
       currentYear = year.year;
       currentYearEntries = yearEntries(currentYear);
-      activeProjectIndex = 0;
-      cardsFlyingAway = false;
-      [panel, sideLeft, sideRight].forEach(element => element?.classList.remove('fly-away', 'drop', 'slide-next', 'slide-prev'));
       applyTheme(currentYear);
       if (currentYear === '2027') {
         setRingVisible(false);
@@ -704,28 +599,14 @@ function tick() {
       } else {
         renderRingGallery(currentYear);
         setRingVisible(true);
-        showProject(currentYearEntries[0], 0, true);
       }
     }
-    if (currentYear !== '2027') {
-      const cardsNeedRefresh = ringEntries.length !== currentYearEntries.length || ringEntries[0]?.year !== currentYear || ringItems?.childElementCount !== currentYearEntries.length;
-      if (cardsNeedRefresh) renderRingGallery(currentYear);
-      setRingVisible(true);
-    }
-  } else {
+  } else if (inYearContact) {
     inYearContact = false;
     currentYear = null;
     currentYearEntries = [];
     setRingVisible(false);
     if (resumeFocusOpen) closeProjectFocus();
-      if (!cardsFlyingAway && panel.classList.contains('visible')) {
-      cardsFlyingAway = true;
-      [panel, sideLeft, sideRight].forEach(element => element.classList.add('fly-away'));
-      setTimeout(() => {
-        panel.classList.remove('visible', 'fly-away', 'drop', 'slide-next', 'slide-prev');
-        [sideLeft, sideRight].forEach(element => element.classList.remove('visible', 'fly-away'));
-      }, 680);
-    }
   }
   camera.position.lerp(new THREE.Vector3(car.position.x + .25, 3.4, car.position.z + 7), .08);
   camera.lookAt(car.position.x, .35, car.position.z - .15);
