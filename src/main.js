@@ -39,6 +39,72 @@ for (let z = -120; z < 54; z += 6) {
   scene.add(mark);
 }
 
+const roadSlogans = [];
+const roadSloganFrames = [];
+const sloganTextureCache = new Map();
+const sloganFrameTexture = (() => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#ffffff';
+  context.fillRect(8, 8, canvas.width - 16, canvas.height - 16);
+  context.strokeStyle = '#ffffff';
+  context.lineWidth = 12;
+  context.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+})();
+function makeRoadSloganTexture(character) {
+  if (sloganTextureCache.has(character)) return sloganTextureCache.get(character);
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext('2d');
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = '#ffffff';
+  context.font = '600 78px Manrope, sans-serif';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(character, canvas.width / 2, canvas.height / 2 + 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  sloganTextureCache.set(character, texture);
+  return texture;
+}
+function addRoadSlogans() {
+  const slogans = [
+    { text: '人生路漫漫', x: -3.07 },
+    { text: '日月如蹉跎', x: 3.07 },
+  ];
+  const step = .66;
+  let index = 0;
+  for (let z = 50; z >= -126; z -= step) {
+    slogans.forEach(({ text, x }) => {
+      const character = text[index % text.length];
+      const group = new THREE.Group();
+      group.rotation.x = -Math.PI / 2;
+      group.position.set(x, .065, z);
+      const frameMaterial = new THREE.MeshBasicMaterial({ map: sloganFrameTexture, color: '#ffad4d', transparent: true, opacity: .174, depthWrite: false, depthTest: false });
+      const letterMaterial = new THREE.MeshBasicMaterial({ map: makeRoadSloganTexture(character), color: '#553118', transparent: true, opacity: .3, depthWrite: false, depthTest: false });
+      const frame = new THREE.Mesh(new THREE.PlaneGeometry(.36, .36), frameMaterial);
+      const letter = new THREE.Mesh(new THREE.PlaneGeometry(.34, .34), letterMaterial);
+      frame.renderOrder = 4;
+      letter.position.z = .004;
+      letter.renderOrder = 5;
+      group.add(frame, letter);
+      roadSlogans.push(letter);
+      roadSloganFrames.push(frame);
+      scene.add(group);
+    });
+    index += 1;
+  }
+}
+addRoadSlogans();
+
 const projects = [
   { year: '2023', title: 'spine-cartoonWord', files: Array.from({ length: 3 }, (_, i) => `2021-spine-cartoonWord-${i + 1}.mp4`) },
   { year: '2023', title: 'spine-planet', files: Array.from({ length: 7 }, (_, i) => `2021-spine-planet-${i + 1}.mp4`) },
@@ -156,11 +222,33 @@ function makeCar() {
   const hood = new THREE.Mesh(new THREE.BoxGeometry(1.4, .12, .58), bodyMat); hood.position.set(0, .68, -.83); hood.castShadow = true; car.add(hood);
   const wheelGeo = new THREE.CylinderGeometry(.28, .28, .18, 20); wheelGeo.rotateZ(Math.PI / 2);
   [[-.83, .33, -.78], [.83, .33, -.78], [-.83, .33, .78], [.83, .33, .78]].forEach(([x, y, z]) => { const wheel = new THREE.Mesh(wheelGeo, darkMat); wheel.position.set(x, y, z); wheel.castShadow = true; car.add(wheel); });
-  const lightMat = new THREE.MeshBasicMaterial({ color: '#d9ff65' });
-  [-.48, .48].forEach(x => { const light = new THREE.Mesh(new THREE.BoxGeometry(.25, .12, .06), lightMat); light.position.set(x, .56, -1.3); car.add(light); });
+  const headlightMat = new THREE.MeshBasicMaterial({ color: '#fff4c2', transparent: true, opacity: .08 });
+  const headlights = [-.48, .48].map(x => {
+    const light = new THREE.Mesh(new THREE.BoxGeometry(.25, .12, .06), headlightMat);
+    light.position.set(x, .56, -1.3);
+    car.add(light);
+    return light;
+  });
+  const headlightBeams = [-.48, .48].map(x => {
+    const pointLight = new THREE.PointLight('#fff1b0', 0, 4.5, 2);
+    pointLight.position.set(x, .58, -1.35);
+    car.add(pointLight);
+    return pointLight;
+  });
+  const hazardMat = new THREE.MeshBasicMaterial({ color: '#ff6b3d', transparent: true, opacity: 0 });
+  const hazards = [[-.72, .55, -1.22], [.72, .55, -1.22], [-.72, .55, .98], [.72, .55, .98]].map(([x, y, z]) => {
+    const light = new THREE.Mesh(new THREE.BoxGeometry(.14, .1, .06), hazardMat);
+    light.position.set(x, y, z);
+    car.add(light);
+    return light;
+  });
   car.userData.bodyMaterial = bodyMat;
   car.userData.darkMaterial = darkMat;
-  car.userData.lightMaterial = lightMat;
+  car.userData.lightMaterial = headlightMat;
+  car.userData.headlights = headlights;
+  car.userData.headlightBeams = headlightBeams;
+  car.userData.hazards = hazards;
+  car.userData.hazardMaterial = hazardMat;
   return car;
 }
 const car = makeCar();
@@ -269,7 +357,7 @@ function applyTheme(year) {
   sun.intensity = theme.weather === 'sun' ? 4.6 : 2.2;
   car.userData.bodyMaterial.color.set(theme.car);
   car.userData.darkMaterial.color.set(theme.window);
-  car.userData.lightMaterial.color.set(theme.accent);
+  car.userData.lightMaterial.color.set('#fff4c2');
   years.forEach(item => {
     item.color = theme.accent;
     item.group?.userData.material.color.set(theme.accent);
@@ -278,6 +366,8 @@ function applyTheme(year) {
     if (item.group?.userData.beamMaterial) item.group.userData.beamMaterial.color.set(theme.accent);
   });
   roadMarks.forEach(mark => mark.material.color.set(theme.accent));
+  roadSlogans.forEach(slogan => slogan.material.color.set(theme.road));
+  roadSloganFrames.forEach(frame => frame.material.color.set(theme.accent));
   buildWeather(theme);
 }
 
@@ -587,7 +677,12 @@ function tick() {
     mark.visible = !years.some(item => Math.abs(mark.position.z - item.z) < 2.7);
   });
   const distanceToYear = Math.abs(car.position.z - year.z);
-  if (distanceToYear < 3.25) {
+  const circleActive = distanceToYear < 3.25;
+  const hazardVisible = circleActive && Math.sin(clock.elapsedTime * 8) > 0;
+  car.userData.headlights.forEach(light => { light.material.opacity = circleActive ? 1 : .08; });
+  car.userData.headlightBeams.forEach(light => { light.intensity = circleActive ? 1.4 : 0; });
+  car.userData.hazardMaterial.opacity = hazardVisible ? .98 : 0;
+  if (circleActive) {
     inYearContact = true;
     if (currentYear !== year.year) {
       currentYear = year.year;
