@@ -235,12 +235,53 @@ function makeCar() {
     car.add(pointLight);
     return pointLight;
   });
-  const hazardMat = new THREE.MeshBasicMaterial({ color: '#ff6b3d', transparent: true, opacity: 0 });
-  const hazards = [[-.72, .55, -1.22], [.72, .55, -1.22], [-.72, .55, .98], [.72, .55, .98]].map(([x, y, z]) => {
-    const light = new THREE.Mesh(new THREE.BoxGeometry(.14, .1, .06), hazardMat);
+  const hazardMat = new THREE.MeshBasicMaterial({ color: '#090705', transparent: true, opacity: 1 });
+  const hazards = [[-.76, .64, 1.36], [.76, .64, 1.36]].map(([x, y, z]) => {
+    const light = new THREE.Mesh(new THREE.BoxGeometry(.22, .16, .08), hazardMat);
     light.position.set(x, y, z);
     car.add(light);
     return light;
+  });
+  const hazardGlowMat = new THREE.MeshBasicMaterial({ color: '#ff5b42', transparent: true, opacity: 0, blending: THREE.AdditiveBlending });
+  const hazardGlows = [[-.76, .64, 1.405], [.76, .64, 1.405]].map(([x, y, z]) => {
+    const glow = new THREE.Mesh(new THREE.BoxGeometry(.16, .11, .03), hazardGlowMat);
+    glow.position.set(x, y, z);
+    car.add(glow);
+    return glow;
+  });
+  const headlightVolumeMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color('#fff1b0') },
+      uOpacity: { value: 0 },
+    },
+    vertexShader: `
+      varying float vDepth;
+      void main() {
+        vDepth = clamp((position.y + 9.0) / 18.0, 0.0, 1.0);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      uniform float uOpacity;
+      varying float vDepth;
+      void main() {
+        float nearGlow = pow(vDepth, 1.45);
+        gl_FragColor = vec4(uColor, uOpacity * nearGlow);
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const headlightVolumes = [-.48, .48].map(x => {
+    const volume = new THREE.Mesh(new THREE.ConeGeometry(4.13, 18, 32, 1, true), headlightVolumeMat);
+    volume.position.set(x, .58, -9.5);
+    volume.rotation.x = Math.PI / 2;
+    volume.rotation.y = x < 0 ? THREE.MathUtils.degToRad(30) : -THREE.MathUtils.degToRad(30);
+    car.add(volume);
+    return volume;
   });
   car.userData.bodyMaterial = bodyMat;
   car.userData.darkMaterial = darkMat;
@@ -249,6 +290,10 @@ function makeCar() {
   car.userData.headlightBeams = headlightBeams;
   car.userData.hazards = hazards;
   car.userData.hazardMaterial = hazardMat;
+  car.userData.hazardGlowMaterial = hazardGlowMat;
+  car.userData.hazardGlows = hazardGlows;
+  car.userData.headlightVolumeMaterial = headlightVolumeMat;
+  car.userData.headlightVolumes = headlightVolumes;
   return car;
 }
 const car = makeCar();
@@ -681,7 +726,8 @@ function tick() {
   const hazardVisible = circleActive && Math.sin(clock.elapsedTime * 8) > 0;
   car.userData.headlights.forEach(light => { light.material.opacity = circleActive ? 1 : .08; });
   car.userData.headlightBeams.forEach(light => { light.intensity = circleActive ? 1.4 : 0; });
-  car.userData.hazardMaterial.opacity = hazardVisible ? .98 : 0;
+  car.userData.headlightVolumeMaterial.uniforms.uOpacity.value = circleActive ? .14 : 0;
+  car.userData.hazardGlowMaterial.opacity = hazardVisible ? .98 : 0;
   if (circleActive) {
     inYearContact = true;
     if (currentYear !== year.year) {
