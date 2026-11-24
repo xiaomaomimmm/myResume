@@ -14,14 +14,15 @@ const groups=[
   ['2023','spine-slots','Spine 插槽动画',6,'mp4','2021'],
   ['2023','wordGame','单词游戏',4,'mp4','2021'],
   ['2023','wordGameCartoon','单词游戏角色',8,'mp4','2021'],
-  ['2025','match3-buff','三消增益',19,'gif'],
+  ['2025','match3-buff','三消增益',19,'clip'],
   ['2025','match3-heroSkill','三消英雄技能',14,'mp4'],
   ['2026','wordGame','单词游戏',10,'mp4'],
 ];
 const projects=[];
 for (const [year,id,name,count,type,sourceYear] of groups) {
   for (let localSequence=1; localSequence<=count; localSequence++) {
-    projects.push({year,id,name,localSequence,type,file:`${sourceYear || year}-${id}-${localSequence}.${type}`});
+    const base=`${sourceYear || year}-${id}-${localSequence}`;
+    projects.push({year,id,name,localSequence,type,file:`${base}.${type}`,clip:type==='clip'?`assets/clips/${base}.mp4`:null,poster:type==='clip'?`assets/thumbs/${base}.jpg`:null});
   }
 }
 projects.push({year:'2027',id:'resume',name:'我的简历',localSequence:1,type:'resume',file:null,resume:true});
@@ -51,9 +52,11 @@ projects.forEach(project=>{
   row.dataset.key=key(project);
   const preview=project.resume
     ? '<div class="resume-preview">简历</div>'
-    : project.type==='gif'
-      ? `<img src="${assetUrl(`myWorks/${project.file}`)}" alt="${escapeHtml(project.name)} ${project.sequence}">`
-      : `<video src="${assetUrl(`myWorks/${project.file}`)}" muted loop autoplay playsinline></video>`;
+    : project.type==='clip'
+      ? `<video src="${assetUrl(project.clip)}" poster="${assetUrl(project.poster)}" muted loop autoplay playsinline></video>`
+      : project.type==='gif'
+        ? `<img src="${assetUrl(`myWorks/${project.file}`)}" alt="${escapeHtml(project.name)} ${project.sequence}">`
+        : `<video src="${assetUrl(`myWorks/${project.file}`)}" muted loop autoplay playsinline></video>`;
   const defaultTitle=`${project.name} ${String(project.sequence).padStart(2,'0')}`;
   row.innerHTML=`<div class="preview">${preview}</div><div class="field"><label>作品标题</label><input class="title" value="${escapeHtml(copy.title||defaultTitle)}"><label>卡片文案</label><textarea class="description" placeholder="这张具体作品的说明">${escapeHtml(copy.description||'')}</textarea></div>`;
   editor.appendChild(row);
