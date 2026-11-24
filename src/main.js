@@ -1,4 +1,5 @@
 import * as THREE from 'https://unpkg.com/three@0.162.0/build/three.module.js';
+import { WeatherSystem } from './weather.js';
 
 const assetUrl = path => new URL(`../${path}`, import.meta.url).href;
 
@@ -7,33 +8,67 @@ scene.background = new THREE.Color('#111310');
 scene.fog = null;
 const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .1, 180);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+// 雨和雾都是满屏叠片，Retina 按 2 倍渲染很吃填充率，压到 1.5 倍几乎看不出差别。
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.querySelector('#app').appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight('#e7e0cf', '#1a2118', 2.4));
+const hemi = new THREE.HemisphereLight('#e7e0cf', '#1a2118', 2.4);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight('#fff4d7', 4.5);
 sun.position.set(-12, 20, 8);
 sun.castShadow = false;
 scene.add(sun);
 
+// 马路只铺在小车能开到的范围里：起点在身后一点，终点就是 STOP 牌的位置。
+const ROAD_START = 14;
+const ROAD_END = -92;
+const ROAD_DRIVE_MIN = ROAD_END + 4.5;
+const ROAD_LENGTH = ROAD_START - ROAD_END;
+const ROAD_CENTER = (ROAD_START + ROAD_END) / 2;
+
 const groundMaterial = new THREE.MeshStandardMaterial({ color: '#20251e', roughness: 1 });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(180, 176), groundMaterial);
+// 地面铺得比马路远得多，开到尽头也只会没入雾里，看不到场景的边界。
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(420, 620), groundMaterial);
 ground.rotation.x = -Math.PI / 2;
-ground.position.z = -34;
+ground.position.z = -80;
 ground.receiveShadow = true;
 scene.add(ground);
-const roadMaterial = new THREE.MeshStandardMaterial({ color: '#2c3028', roughness: .95 });
+const roadFadeTexture = (() => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 4;
+  canvas.height = 256;
+  const context = canvas.getContext('2d');
+  const gradient = context.createLinearGradient(0, 0, 0, 256);
+  // v=1 对应马路远端：在最后一段里把路面交给地面，终点不会出现一刀切的边。
+  gradient.addColorStop(0, '#1a1a1a');
+  gradient.addColorStop(.05, '#ffffff');
+  gradient.addColorStop(.975, '#ffffff');
+  gradient.addColorStop(1, '#000000');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 4, 256);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 4;
+  return texture;
+})();
+const roadMaterial = new THREE.MeshStandardMaterial({ color: '#2c3028', roughness: .95, transparent: true, alphaMap: roadFadeTexture });
 const roadMarks = [];
-const road = new THREE.Mesh(new THREE.PlaneGeometry(7, 176), roadMaterial);
+const road = new THREE.Mesh(new THREE.PlaneGeometry(7, ROAD_LENGTH), roadMaterial);
 road.rotation.x = -Math.PI / 2;
-road.position.set(0, .015, -34);
+road.position.set(0, .015, ROAD_CENTER);
 road.receiveShadow = true;
 scene.add(road);
-for (let z = -120; z < 54; z += 6) {
-  const mark = new THREE.Mesh(new THREE.BoxGeometry(.14, .025, 2.4), new THREE.MeshBasicMaterial({ color: '#d9ff65' }));
+// 路面虚线：整条路每 3 个单位一段，但每座年份门附近（圈的范围）留空，
+// 圈边上就不会再戳出一截白条。
+// 每座年份门只在圈口切一刀（圈半径 2.55 + 半段 0.8 + 余量），
+// 圈内没有虚线，圈外前后一条线是连着的，路面不会看着断掉。
+const gateZs = [-10, -31, -52, -73];
+const GATE_CLEAR = 4;
+for (let z = ROAD_START - 4; z > ROAD_END + 12; z -= 3) {
+  if (gateZs.some(gateZ => Math.abs(z - gateZ) < GATE_CLEAR)) continue;
+  const mark = new THREE.Mesh(new THREE.BoxGeometry(.14, .025, 1.6), new THREE.MeshBasicMaterial({ color: '#d9ff65' }));
   mark.position.set(0, .05, z);
   roadMarks.push(mark);
   scene.add(mark);
@@ -82,7 +117,7 @@ function addRoadSlogans() {
   ];
   const step = .66;
   let index = 0;
-  for (let z = 50; z >= -126; z -= step) {
+  for (let z = ROAD_START - 4; z >= ROAD_END + 12; z -= step) {
     slogans.forEach(({ text, x }) => {
       const character = text[index % text.length];
       const group = new THREE.Group();
@@ -104,6 +139,60 @@ function addRoadSlogans() {
   }
 }
 addRoadSlogans();
+
+// 马路终点立一块 STOP 牌，它就是小车能开到的极限。
+const stopSignTexture = (() => {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const context = canvas.getContext('2d');
+  context.clearRect(0, 0, 256, 256);
+  const cx = 128, cy = 128;
+  const octagon = radius => {
+    context.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.PI / 8 + i * Math.PI / 4;
+      const x = cx + Math.cos(angle) * radius;
+      const y = cy + Math.sin(angle) * radius;
+      if (i === 0) context.moveTo(x, y); else context.lineTo(x, y);
+    }
+    context.closePath();
+  };
+  octagon(120);
+  context.fillStyle = '#cf2f27';
+  context.fill();
+  context.lineWidth = 10;
+  context.strokeStyle = '#f6f1e7';
+  context.stroke();
+  octagon(101);
+  context.lineWidth = 5;
+  context.strokeStyle = '#f6f1e7';
+  context.stroke();
+  context.fillStyle = '#f6f1e7';
+  context.font = '700 54px Helvetica, Arial, sans-serif';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText('STOP', cx, cy + 3);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+})();
+const stopSign = new THREE.Group();
+const stopFace = new THREE.Mesh(
+  new THREE.PlaneGeometry(1.08, 1.08),
+  new THREE.MeshBasicMaterial({ map: stopSignTexture, transparent: true, side: THREE.DoubleSide })
+);
+stopFace.position.y = 2.16;
+stopFace.position.z = .02;
+const stopPost = new THREE.Mesh(
+  new THREE.CylinderGeometry(.05, .05, 2.2, 10),
+  new THREE.MeshStandardMaterial({ color: '#8c8f8a', roughness: .55, metalness: .35 })
+);
+stopPost.position.y = 1.1;
+stopPost.position.z = -.08;
+stopSign.add(stopFace, stopPost);
+stopSign.position.set(2.5, 0, ROAD_END + 2.5);
+scene.add(stopSign);
 
 const projects = [
   { year: '2023', title: 'spine-cartoonWord', files: Array.from({ length: 3 }, (_, i) => `2021-spine-cartoonWord-${i + 1}.mp4`) },
@@ -138,7 +227,7 @@ function textMesh(text, color) {
   canvas.width = 1024; canvas.height = 256;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = color; ctx.font = '800 112px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(text, 512, 150);
-  const meshMaterial = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true });
+  const meshMaterial = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthWrite: false });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.75), meshMaterial);
   mesh.rotation.x = -Math.PI / 2; mesh.position.y = .09;
   return mesh;
@@ -172,6 +261,9 @@ function addYearGate(item) {
   ring.position.y = .06;
   group.add(ring);
   const label = textMesh(item.label || item.year, item.color);
+  // 标签是半透明贴图，不写深度（否则会在远处把身后的路“抠”出一道断口），
+  // 而且要排在路面之后画，不然会被路面盖掉。
+  label.renderOrder = 3;
   label.position.z = .15;
   group.add(label);
   const beamTexture = makeBeamTexture();
@@ -301,123 +393,152 @@ car.position.set(0, 0, 5);
 car.scale.setScalar(.42);
 scene.add(car);
 camera.position.set(0, 3.3, 18);
-const weatherGroup = new THREE.Group();
-scene.add(weatherGroup);
+
+// ── 天光：最后一个场景（2027）里，正上方落下一柱七色光，落在小车身上 ──
+const rainbowRig = new THREE.Group();
+rainbowRig.visible = false;
+scene.add(rainbowRig);
+const rainbowTint = new THREE.Color();
+
+const HSL_FN = `
+    vec3 hsl2rgb(vec3 c) {
+      vec3 rgb = clamp(abs(mod(c.x * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+      return c.z + c.y * (rgb - 0.5) * (1.0 - abs(2.0 * c.z - 1.0));
+    }
+`;
+
+// 圈里的七彩雾：一捧贴着地面浮起来的高光彩雾，只在最后一站的圈里亮。
+function makeMistTexture(size = 256) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext('2d');
+  const gradient = context.createRadialGradient(size / 2, size / 2, size * .03, size / 2, size / 2, size * .5);
+  gradient.addColorStop(0, 'rgba(255,255,255,.95)');
+  gradient.addColorStop(.42, 'rgba(255,255,255,.60)');
+  gradient.addColorStop(.72, 'rgba(255,255,255,.22)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = false;
+  texture.minFilter = THREE.LinearFilter;
+  return texture;
+}
+const mistTexture = makeMistTexture();
+
+// 地面上的那圈高光：按角度铺七色，慢慢转，像雾底下被打亮的一层。
+const mistSheenMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+    uOpacity: { value: .18 },
+  },
+  vertexShader: `
+    varying vec2 vLocal;
+    void main() {
+      vLocal = position.xy;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime, uOpacity;
+    varying vec2 vLocal;
+    ${HSL_FN}
+    void main() {
+      float radius = length(vLocal) / 2.45;
+      if (radius > 1.0) discard;
+      float a = fract(atan(vLocal.y, vLocal.x) / 6.2831853 + 0.5 + uTime * 0.04);
+      vec3 col = hsl2rgb(vec3(a * 0.82, 0.9, 0.62));
+      gl_FragColor = vec4(col, pow(1.0 - radius, 1.5) * uOpacity);
+    }
+  `,
+  transparent: true,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+});
+const mistSheen = new THREE.Mesh(new THREE.CircleGeometry(2.45, 72), mistSheenMaterial);
+mistSheen.rotation.x = -Math.PI / 2;
+mistSheen.position.y = .045;
+mistSheen.frustumCulled = false;
+rainbowRig.add(mistSheen);
+
+const mistPuffs = [];
+// 圈里的七彩雾：24 团分四层铺开，比原来密一倍，颜色一圈一圈错开。
+const MIST_COUNT = 24;
+for (let index = 0; index < MIST_COUNT; index++) {
+  const layer = index % 4;
+  const baseAngle = (index / MIST_COUNT) * Math.PI * 2 + layer * .34;
+  const baseRadius = .42 + layer * .52 + (index % 2) * .16;
+  const baseY = .12 + layer * .15 + (index % 2) * .05;
+  const size = 1.55 + layer * .22 + (index % 2) * .28;
+  const material = new THREE.SpriteMaterial({
+    map: mistTexture,
+    color: new THREE.Color().setHSL(index / MIST_COUNT, .9, .58, THREE.SRGBColorSpace),
+    transparent: true,
+    opacity: .15,
+    blending: THREE.AdditiveBlending,
+    alphaTest: .01,
+    depthWrite: false,
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.position.set(Math.cos(baseAngle) * baseRadius, baseY, Math.sin(baseAngle) * baseRadius);
+  sprite.scale.set(size, size * .52, 1);
+  sprite.frustumCulled = false;
+  rainbowRig.add(sprite);
+  mistPuffs.push({ sprite, material, baseAngle, baseRadius, baseY, phase: index * .79 });
+}
+
+// 天气系统照 Unity 的 MeadowWeather：预设参数 + 平滑过渡 + GPU 单批次粒子 + 近景雾幕。
+const weather = new WeatherSystem({ scene, camera, groundMaterial, roadMaterial, sun, hemi });
 const themes = {
   '2023': { background: '#2b1608', fog: '#70431e', ground: '#8a5428', road: '#553118', accent: '#ffad4d', text: '#ffe8c9', muted: '#d5a875', car: '#ffad4d', window: '#3c2016', weather: 'sand' },
-  '2025': { background: '#071811', fog: '#17452d', ground: '#1c4a34', road: '#123126', accent: '#7dff9a', text: '#ddffe6', muted: '#94c7a4', car: '#7dff9a', window: '#10271c', weather: 'rain' },
+  '2025': { background: '#061a33', fog: '#17416e', ground: '#123050', road: '#0b2239', accent: '#7fc9ff', text: '#e6f4ff', muted: '#96b6d4', car: '#a9d9ff', window: '#0c2035', weather: 'rain' },
   '2026': { background: '#091322', fog: '#1c3656', ground: '#1b3150', road: '#12233a', accent: '#9fd8ff', text: '#dceeff', muted: '#8eabc8', car: '#9fd8ff', window: '#14243d', weather: 'snow' },
-  '2027': { background: '#1b0d0d', fog: '#4a1d1d', ground: '#4b211f', road: '#2d1718', accent: '#e65b52', text: '#ffe0dc', muted: '#c79a96', car: '#e65b52', window: '#351617', weather: 'sun' },
+  '2027': { background: '#2b1a4f', fog: '#5c4494', ground: '#3b3068', road: '#251e4b', accent: '#ffe0a3', text: '#f7f1ff', muted: '#c0b1e4', car: '#fff6ff', window: '#2f2758', weather: 'clear', rainbow: true },
 };
 let activeTheme = null;
-const weatherParticles = [];
-function clearWeather() {
-  while (weatherGroup.children.length) weatherGroup.remove(weatherGroup.children[0]);
-  weatherParticles.length = 0;
-}
-function makeDustTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 64; canvas.height = 64;
-  const context = canvas.getContext('2d');
-  const gradient = context.createRadialGradient(32, 32, 2, 32, 32, 30);
-  gradient.addColorStop(0, 'rgba(255,220,150,.8)');
-  gradient.addColorStop(.45, 'rgba(235,160,70,.42)');
-  gradient.addColorStop(1, 'rgba(235,160,70,0)');
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, 64, 64);
-  return new THREE.CanvasTexture(canvas);
-}
-function buildWeather(theme) {
-  clearWeather();
-  if (theme.weather === 'sun') return;
-  const isRain = theme.weather === 'rain';
-  const isLeaves = theme.weather === 'leaves';
-  const isSand = theme.weather === 'sand';
-  const count = isRain ? 180 : isLeaves ? 150 : isSand ? 360 : 110;
-  const texturePath = isLeaves ? assetUrl('assets/pixel-maple.svg') : theme.weather === 'snow' ? assetUrl('assets/pixel-snowflake.svg') : '';
-  const particleTexture = texturePath ? new THREE.TextureLoader().load(texturePath) : isSand ? makeDustTexture() : null;
-
-  if (isRain) {
-    const positions = new Float32Array(count * 6);
-    for (let i = 0; i < count; i++) {
-      const x = (Math.random() - .5) * 18;
-      const y = Math.random() * 10 + 1;
-      const z = car.position.z - Math.random() * 28;
-      positions[i * 6] = x; positions[i * 6 + 1] = y; positions[i * 6 + 2] = z;
-      positions[i * 6 + 3] = x - .08; positions[i * 6 + 4] = y - .75; positions[i * 6 + 5] = z;
-      weatherParticles.push({ index: i, speed: .28 + Math.random() * .18 });
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const weather = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: '#b6ffd0', transparent: true, opacity: .48 }));
-    weather.userData.particles = weatherParticles;
-    weather.userData.isRain = true;
-    weather.userData.isLeaves = false;
-    weatherGroup.add(weather);
-    return;
-  }
-
-  // 叶片和雪花使用独立 Sprite，让每个粒子拥有不同大小和旋转速度。
-  const weather = new THREE.Group();
-  for (let i = 0; i < count; i++) {
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-      color: isSand ? '#f2b866' : '#ffffff',
-      map: particleTexture,
-      alphaTest: .08,
-      transparent: true,
-      opacity: .9,
-      depthWrite: false
-    }));
-    const size = isLeaves ? .24 + Math.random() * .42 : isSand ? .018 + Math.random() * .072 : .07 + Math.random() * .16;
-    sprite.scale.set(size, size, 1);
-    const particleY = isSand ? .08 + Math.random() * .62 : Math.random() * 10 + 1;
-    sprite.position.set((Math.random() - .5) * 18, particleY, car.position.z - Math.random() * 28);
-    sprite.material.rotation = Math.random() * Math.PI * 2;
-    weather.add(sprite);
-    weatherParticles.push({
-      sprite,
-      speed: isLeaves ? .035 + Math.random() * .05 : .04 + Math.random() * .04,
-      sway: Math.random() * 6.28,
-      rotationSpeed: isLeaves ? (Math.random() - .5) * 1.8 : isSand ? (Math.random() - .5) * 1.2 : -(0.25 + Math.random() * .65),
-      driftSpeed: isSand ? .02 + Math.random() * .06 : 0
-    });
-  }
-  weather.userData.particles = weatherParticles;
-  weather.userData.isRain = false;
-  weather.userData.isLeaves = isLeaves;
-  weather.userData.isSand = isSand;
-  weatherGroup.add(weather);
-}
 function applyTheme(year) {
   const theme = themes[year];
   if (!theme || activeTheme === year) return;
+  const firstTheme = activeTheme === null;
   activeTheme = year;
-  scene.background.set(theme.background);
   document.documentElement.style.setProperty('--accent', theme.accent);
   document.documentElement.style.setProperty('--ink', theme.text);
   document.documentElement.style.setProperty('--muted', theme.muted);
   groundMaterial.color.set(theme.ground);
   roadMaterial.color.set(theme.road);
-  sun.color.set(theme.weather === 'sun' ? '#ffd2a4' : theme.weather === 'rain' ? '#b7e3cf' : '#b8dcff');
-  sun.intensity = theme.weather === 'sun' ? 4.6 : 2.2;
   car.userData.bodyMaterial.color.set(theme.car);
   car.userData.darkMaterial.color.set(theme.window);
   car.userData.lightMaterial.color.set('#fff4c2');
+  car.userData.headlightVolumeMaterial.uniforms.uColor.value.set('#fff1b0');
+  car.userData.headlightBeams.forEach(light => light.color.set('#fff1b0'));
+  car.userData.hazardGlowMaterial.color.set('#ff5b42');
   years.forEach(item => {
     item.color = theme.accent;
     item.group?.userData.material.color.set(theme.accent);
     if (item.group?.userData.labelMaterial) item.group.userData.labelMaterial.color.set(theme.accent);
     if (item.group?.userData.ringMaterial) item.group.userData.ringMaterial.color.set(theme.accent);
     if (item.group?.userData.beamMaterial) item.group.userData.beamMaterial.color.set(theme.accent);
+    if (item.group?.userData.beamInnerMaterial) item.group.userData.beamInnerMaterial.color.set(theme.accent);
+    if (item.group?.userData.beamUnderMaterial) item.group.userData.beamUnderMaterial.color.set(theme.accent);
+    if (item.group?.userData.beamLowMaterial) item.group.userData.beamLowMaterial.color.set(theme.accent);
   });
   roadMarks.forEach(mark => mark.material.color.set(theme.accent));
   roadSlogans.forEach(slogan => slogan.material.color.set(theme.road));
   roadSloganFrames.forEach(frame => frame.material.color.set(theme.accent));
-  buildWeather(theme);
+  rainbowRig.visible = !!theme.rainbow;
+  weather.setTheme(theme, { instant: firstTheme });
 }
 
 const keys = {};
 applyTheme('2023');
+// 调试用：?weather=rain|snow|sand|fog|clear 可以直接看某一种天气。
+const weatherOverride = new URLSearchParams(location.search).get('weather');
+if (weatherOverride) weather.setKind(weatherOverride, { instant: true });
+// 调试用：?theme=2023|2025|2026|2027 直接看某个场景的配色。
+const themeOverride = new URLSearchParams(location.search).get('theme');
+if (themes[themeOverride]) applyTheme(themeOverride);
 let currentYear = null;
 let inYearContact = false;
 let currentYearEntries = [];
@@ -471,11 +592,18 @@ function resumeMarkup() {
   const data = resumeData();
   return `<div class="resume-content"><div class="resume-head"><div><h3>${escapeHtml(data.name)}</h3><p class="resume-role">${escapeHtml(data.role)}</p></div><div class="resume-contact">${escapeHtml(data.contact).replace(/　/g, '<br>')}</div></div><div class="resume-grid"><section><h4>教育背景</h4><p>${escapeHtml(data.education).replace(/\n/g, '<br>')}</p></section><section><h4>工作经验</h4><p>${escapeHtml(data.experience).replace(/\n/g, '<br>')}</p></section><section><h4>技能特长</h4><p>${escapeHtml(data.skills).replace(/\n/g, '<br>')}</p></section><section><h4>自我评价</h4><p>${escapeHtml(data.summary).replace(/\n/g, '<br>')}</p></section></div></div>`;
 }
-function mediaMarkup(project, autoplay) {
+function mediaMarkup(project, autoplay, thumbnail = false) {
   const source = project.files[0];
   const url = assetUrl(`myWorks/${source}`);
   if (source.endsWith('.gif')) {
-    return `<img src="${url}" alt="${escapeHtml(displayName(project))}" />`;
+    // GIF 已经转成小体积 MP4（assets/clips），圈里再用一圈静帧兜底：
+    // 平时只显示静帧，转到最前面的那张才露出视频并播放，同一时刻最多一份在解码。
+    const base = source.replace(/\.gif$/i, '');
+    const still = assetUrl(`assets/thumbs/${base}.jpg`);
+    const clip = assetUrl(`assets/clips/${base}.mp4`);
+    const alt = escapeHtml(displayName(project));
+    if (!thumbnail) return `<video src="${clip}" poster="${still}" ${autoplay ? 'autoplay' : ''} muted loop playsinline></video>`;
+    return `<img class="ring-still" src="${still}" alt="${alt}" /><video class="ring-clip" src="${clip}" poster="${still}" muted loop playsinline preload="none"></video>`;
   }
   return `<video src="${url}" ${autoplay ? 'autoplay' : ''} muted loop playsinline></video>`;
 }
@@ -554,7 +682,7 @@ addEventListener('keydown', event => {
   if (event.key === 'ArrowLeft') { event.preventDefault(); cycleFocusProject(-1); }
   if (event.key === 'ArrowRight') { event.preventDefault(); cycleFocusProject(1); }
 });
-const ringState = { angle: 0, dragging: false, lastX: 0, moved: false, frontIndex: -1 };
+const ringState = { angle: 0, dragging: false, lastX: 0, moved: false, frontIndex: -1, pending: false };
 const ringGalleries = new Map();
 let activeRing = null;
 function syncRingMedia(frontIndex) {
@@ -562,7 +690,6 @@ function syncRingMedia(frontIndex) {
   const previous = activeRing.cards[ringState.frontIndex];
   previous?.classList.remove('is-front');
   previous?.querySelector('video')?.pause();
-
   ringState.frontIndex = frontIndex;
   const front = activeRing.cards[frontIndex];
   front?.classList.add('is-front');
@@ -583,12 +710,20 @@ function updateRingCardTransforms() {
     const x = Math.sin(theta) * radiusX;
     const y = Math.cos(theta) * radiusY;
     const scale = .48 + depth * .52;
-    const blur = Math.max(0, (1 - depth) * 3.2);
-    card.style.setProperty('--card-ratio', card.dataset.ratio || '1 / 1.12');
-    card.style.transform = `translate3d(calc(-50% + ${x}px), calc(-50% + ${y}px), 0) scale(${scale})`;
-    card.style.zIndex = String(Math.round(depth * 1000));
-    card.style.opacity = String(.28 + depth * .72);
-    card.style.filter = `blur(${blur.toFixed(2)}px) brightness(${.68 + depth * .32})`;
+    // 转动时会每帧改样式，所以只写真正变化的值：
+    // 位置量到 0.5px、透明度量到 0.05、模糊只有三档（模糊是最贵的，不能每帧变）。
+    const cache = card.__ringCache || (card.__ringCache = {});
+    const ratio = card.dataset.ratio || '1 / 1.12';
+    if (cache.ratio !== ratio) { cache.ratio = ratio; card.style.setProperty('--card-ratio', ratio); }
+    const transform = `translate3d(calc(-50% + ${Math.round(x * 2) / 2}px), calc(-50% + ${Math.round(y * 2) / 2}px), 0) scale(${scale.toFixed(3)})`;
+    if (cache.transform !== transform) { cache.transform = transform; card.style.transform = transform; }
+    const zIndex = Math.round(depth * 1000);
+    if (cache.zIndex !== zIndex) { cache.zIndex = zIndex; card.style.zIndex = String(zIndex); }
+    const opacity = Math.round((.28 + depth * .72) * 20) / 20;
+    if (cache.opacity !== opacity) { cache.opacity = opacity; card.style.opacity = String(opacity); }
+    // 不再给卡片加 blur 滤镜：卡片里可能有视频，模糊层每帧都要重算，
+    // 深度感交给缩放和透明度表达。
+    if (cache.blur !== undefined) { cache.blur = undefined; card.style.filter = ''; }
   });
   syncRingMedia(frontIndex);
 }
@@ -614,7 +749,7 @@ function renderRingGallery(year) {
     const group = document.createElement('div');
     group.hidden = true;
     const entries = yearEntries(year);
-    group.innerHTML = entries.map(project => `<article class="ring-card" role="button" tabindex="0" aria-label="${escapeHtml(displayName(project))}"><div class="ring-media">${mediaMarkup(project, false)}<div class="ring-loading" aria-hidden="true"></div></div><div class="ring-name">${escapeHtml(displayName(project))}</div></article>`).join('');
+    group.innerHTML = entries.map(project => `<article class="ring-card" role="button" tabindex="0" aria-label="${escapeHtml(displayName(project))}"><div class="ring-media">${mediaMarkup(project, false, true)}<div class="ring-loading" aria-hidden="true"></div></div><div class="ring-name">${escapeHtml(displayName(project))}</div></article>`).join('');
     const cards = Array.from(group.querySelectorAll('.ring-card'));
     cards.forEach((card, index) => {
       setCardRatio(card, card.querySelector('img, video'));
@@ -645,6 +780,8 @@ function startRingInteraction() {
   if (!ringGallery) return;
   ringGallery.addEventListener('pointerdown', event => {
     if (!ringGallery.classList.contains('visible')) return;
+    // 按下就掐掉默认行为：否则长按拖拽会变成文字/图片的多选高亮。
+    event.preventDefault();
     ringState.dragging = true;
     ringState.moved = false;
     ringState.lastX = event.clientX;
@@ -655,7 +792,15 @@ function startRingInteraction() {
     if (Math.abs(delta) > 2) ringState.moved = true;
     ringState.angle += delta * .006;
     ringState.lastX = event.clientX;
-    updateRingCardTransforms();
+    // 一帧最多刷一次样式，pointermove 频率高于屏幕刷新时不重复写 DOM。
+    if (!ringState.pending) {
+      ringState.pending = true;
+      requestAnimationFrame(() => { ringState.pending = false; updateRingCardTransforms(); });
+    }
+  });
+  // 长按/拖动时不要触发文字选中、图片拖拽和长按菜单。
+  ['selectstart', 'dragstart', 'contextmenu'].forEach(type => {
+    ringGallery.addEventListener(type, event => event.preventDefault());
   });
   const endDrag = () => { ringState.dragging = false; setTimeout(() => { ringState.moved = false; }, 100); };
   ringGallery.addEventListener('pointerup', endDrag);
@@ -707,10 +852,11 @@ function nearestYear() {
 const clock = new THREE.Clock();
 function tick() {
   requestAnimationFrame(tick);
+
   const dt = Math.min(clock.getDelta(), .05);
   const drive = (keys.w || keys.arrowup ? 1 : 0) + (keys.s || keys.arrowdown ? -1 : 0);
   car.position.z -= drive * dt * 11;
-  car.position.z = THREE.MathUtils.clamp(car.position.z, -90, 14);
+  car.position.z = THREE.MathUtils.clamp(car.position.z, ROAD_DRIVE_MIN, ROAD_START);
 
   // 小车始终沿道路中心直线行驶。
 
@@ -719,7 +865,7 @@ function tick() {
   car.scale.setScalar(.42);
   const year = nearestYear();
   roadMarks.forEach(mark => {
-    mark.visible = !years.some(item => Math.abs(mark.position.z - item.z) < 2.7);
+    mark.visible = !years.some(item => Math.abs(mark.position.z - item.z) < GATE_CLEAR);
   });
   const distanceToYear = Math.abs(car.position.z - year.z);
   const circleActive = distanceToYear < 3.25;
@@ -750,42 +896,73 @@ function tick() {
     if (resumeFocusOpen) closeProjectFocus();
   }
   camera.position.lerp(new THREE.Vector3(car.position.x + .25, 3.4, car.position.z + 7), .08);
-  camera.lookAt(car.position.x, .35, car.position.z - .15);
-  const weather = weatherGroup.children[0];
-  if (weather) {
-    if (weather.userData.isRain) {
-      const positions = weather.geometry.attributes.position.array;
-      weather.userData.particles.forEach(particle => {
-        const i = particle.index * 6;
-        positions[i + 1] -= particle.speed;
-        positions[i + 4] -= particle.speed;
-        positions[i] += Math.sin(clock.elapsedTime * 1.2 + particle.index) * .001;
-        positions[i + 3] = positions[i] - .08;
-        positions[i + 2] = car.position.z - ((car.position.z - positions[i + 2] + 32) % 32);
-        positions[i + 5] = positions[i + 2];
-        if (positions[i + 1] < .2) { positions[i + 1] = 10; positions[i + 4] = 9.25; }
-      });
-      weather.geometry.attributes.position.needsUpdate = true;
-    } else {
-      weather.userData.particles.forEach(particle => {
-        const sprite = particle.sprite;
-        if (weather.userData.isSand) {
-          sprite.position.x += particle.driftSpeed;
-          sprite.position.z += Math.sin(clock.elapsedTime * 1.4 + particle.sway) * .012;
-          if (sprite.position.x > 10) sprite.position.x = -10;
-          if (sprite.position.z > car.position.z + 4) sprite.position.z = car.position.z - 28;
-          if (sprite.position.z < car.position.z - 30) sprite.position.z = car.position.z + 3;
-        } else {
-          sprite.position.y -= particle.speed;
-          sprite.position.x += Math.sin(clock.elapsedTime * (weather.userData.isLeaves ? 1.6 : 1.2) + particle.sway) * (weather.userData.isLeaves ? .012 : .003);
-          if (weather.userData.isLeaves) sprite.position.z += Math.cos(clock.elapsedTime * 1.1 + particle.sway) * .006;
-          sprite.position.z = car.position.z - ((car.position.z - sprite.position.z + 32) % 32);
-          if (sprite.position.y < .2) sprite.position.y = 10;
-        }
-        sprite.material.rotation += particle.rotationSpeed * dt;
-      });
-    }
+  // 视线方向写死成相机的固定相对偏移：跟随有延迟时俯仰角也不变，
+  // 否则车一动镜头就像被抬起来，把远处地面的边界露出来。
+  camera.lookAt(camera.position.x - .25, camera.position.y - 3.05, camera.position.z - 7.15);
+
+  // 2027 场景：正上方落下的七色光柱踩在车上，车一动就跟着走；只有开进最后一站的圈里才亮。
+  const lastGate = years[years.length - 1];
+  const inLastCircle = Math.abs(car.position.z - lastGate.z) < 3.25;
+  rainbowRig.visible = inLastCircle || resumeFocusOpen;
+  if (rainbowRig.visible) {
+    const time = clock.elapsedTime;
+    // 雾待在圈里，不跟着车走。
+    rainbowRig.position.set(0, .02, lastGate.z);
+    mistSheenMaterial.uniforms.uTime.value = time;
+    mistSheenMaterial.uniforms.uOpacity.value = .18 + Math.sin(time * 1.6) * .04;
+    mistPuffs.forEach(puff => {
+      const angle = puff.baseAngle + time * .16 + Math.sin(time * .45 + puff.phase) * .26;
+      puff.sprite.position.set(
+        Math.cos(angle) * puff.baseRadius,
+        puff.baseY + Math.sin(time * .55 + puff.phase) * .12,
+        Math.sin(angle) * puff.baseRadius,
+      );
+      puff.material.color.setHSL((time * .06 + puff.phase * .1) % 1, .9, .58 + Math.sin(time * 2 + puff.phase) * .10, THREE.SRGBColorSpace);
+      puff.material.opacity = .11 + .08 * (.5 + .5 * Math.sin(time * 1.9 + puff.phase));
+    });
   }
+
+  // 2027 的霓虹：整个场景的配色一起轮转，还带一点像电流般的明暗抖动。
+  if (activeTheme === '2027') {
+    const time = clock.elapsedTime;
+    const hue = (time * .055) % 1;
+    // 最后一个圈（RESUME）和它地上的字、还有小车，走一套更快的换色节奏。
+    const lastHue = (time * .24) % 1;
+    // 0.6~1.0 之间来回，看起来像霓虹灯管在轻轻闪。
+    const shine = .8 + .2 * Math.sin(time * 4.7) * Math.sin(time * 1.4 + .7);
+    // 天空、雾、地面、路面这些大色块也跟着换，整条路边走边变颜色。
+    weather.palette.background.setHSL(hue, .58, .09 + .03 * shine, THREE.SRGBColorSpace);
+    weather.palette.fog.setHSL((hue + .07) % 1, .50, .22 + .05 * shine, THREE.SRGBColorSpace);
+    weather.palette.ground.setHSL((hue + .56) % 1, .34, .10 + .02 * shine, THREE.SRGBColorSpace);
+    weather.palette.road.setHSL((hue + .58) % 1, .30, .13 + .03 * shine, THREE.SRGBColorSpace);
+    car.userData.bodyMaterial.color.setHSL(lastHue, .58, .38 + .18 * shine, THREE.SRGBColorSpace);
+    car.userData.darkMaterial.color.setHSL((lastHue + .72) % 1, .42, .07 + .04 * shine, THREE.SRGBColorSpace);
+    roadMarks.forEach((mark, index) => mark.material.color.setHSL((hue + index * .09) % 1, .92, .56 + .10 * shine), THREE.SRGBColorSpace);
+    roadSlogans.forEach((slogan, index) => slogan.material.color.setHSL((hue + .5 + index * .02) % 1, .85, .48 + .10 * shine), THREE.SRGBColorSpace);
+    roadSloganFrames.forEach((frame, index) => frame.material.color.setHSL((hue + .5 + index * .02) % 1, .9, .56 + .10 * shine), THREE.SRGBColorSpace);
+    years.forEach((item, index) => {
+      const data = item.group?.userData;
+      if (!data) return;
+      // 最后那个圈跟车、跟字同频，前三个圈保持原来的慢节奏。
+      const gateHue = item.label === 'RESUME' ? lastHue : (hue + index * .18) % 1;
+      rainbowTint.setHSL(gateHue, .9, .58 + .08 * shine, THREE.SRGBColorSpace);
+      data.material?.color.copy(rainbowTint);
+      data.labelMaterial?.color.copy(rainbowTint);
+      data.ringMaterial?.color.copy(rainbowTint);
+      data.beamMaterial?.color.copy(rainbowTint);
+      data.beamInnerMaterial?.color.copy(rainbowTint);
+      data.beamUnderMaterial?.color.copy(rainbowTint);
+      data.beamLowMaterial?.color.copy(rainbowTint);
+    });
+    const carHue = lastHue;
+    car.userData.lightMaterial.color.setHSL(carHue, 1, .70 + .08 * shine, THREE.SRGBColorSpace);
+    car.userData.headlightVolumeMaterial.uniforms.uColor.value.setHSL(carHue, 1, .64 + .08 * shine, THREE.SRGBColorSpace);
+    car.userData.headlightBeams.forEach(light => light.color.setHSL(carHue, 1, .58 + .08 * shine), THREE.SRGBColorSpace);
+    // 尾灯不参与变色，从头到尾都是红的（颜色由 applyTheme 固定成 #ff5b42）。
+    car.userData.hazardGlowMaterial.color.set('#ff5b42');
+  }
+
+  weather.update(dt, clock.elapsedTime);
   years.forEach(item => {
     const beam = item.group?.userData.beamMaterial;
     const beamInner = item.group?.userData.beamInnerMaterial;
@@ -805,3 +982,7 @@ function tick() {
 }
 tick();
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); updateRingCardTransforms(); });
+window.__weather = weather;
+window.__renderer = renderer;
+window.__scene = scene;
+window.__camera = camera;
