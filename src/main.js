@@ -194,16 +194,18 @@ stopSign.add(stopFace, stopPost);
 stopSign.position.set(2.5, 0, ROAD_END + 2.5);
 scene.add(stopSign);
 
+// 视频资源统一放在 assets/video/<年份>/<项目>/<序号>.mp4，
+// 每个视频的首帧静帧放在 assets/thumbs/<年份>/<项目>/<序号>.jpg，圈里平时只显示静帧。
 const projects = [
-  { year: '2023', title: 'spine-cartoonWord', files: Array.from({ length: 3 }, (_, i) => `2021-spine-cartoonWord-${i + 1}.mp4`) },
-  { year: '2023', title: 'spine-planet', files: Array.from({ length: 7 }, (_, i) => `2021-spine-planet-${i + 1}.mp4`) },
-  { year: '2023', title: 'spine-slots', files: Array.from({ length: 6 }, (_, i) => `2021-spine-slots-${i + 1}.mp4`) },
-  { year: '2023', title: 'wordGame', files: Array.from({ length: 4 }, (_, i) => `2021-wordGame-${i + 1}.mp4`) },
-  { year: '2023', title: 'wordGameCartoon', files: Array.from({ length: 8 }, (_, i) => `2021-wordGameCartoon-${i + 1}.mp4`) },
-  { year: '2025', title: 'match3-buff', files: Array.from({ length: 19 }, (_, i) => `2025-match3-buff-${i + 1}.gif`) },
-  { year: '2025', title: 'match3-heroSkill', files: Array.from({ length: 14 }, (_, i) => `2025-match3-heroSkill-${i + 1}.mp4`) },
-  { year: '2026', title: 'wordGame', files: Array.from({ length: 10 }, (_, i) => `2026-wordGame-${i + 1}.mp4`) },
-  { year: '2027', title: 'resume', files: [], resume: true },
+  { year: '2023', title: 'spine-cartoonWord', count: 3 },
+  { year: '2023', title: 'spine-planet', count: 7 },
+  { year: '2023', title: 'spine-slots', count: 6 },
+  { year: '2023', title: 'wordGame', count: 4 },
+  { year: '2023', title: 'wordGameCartoon', count: 8 },
+  { year: '2025', title: 'match3-buff', count: 19 },
+  { year: '2025', title: 'match3-heroSkill', count: 14 },
+  { year: '2026', title: 'wordGame', count: 10 },
+  { year: '2027', title: 'resume', count: 0, resume: true },
 ];
 const years = [
   { year: '2023', z: -10, color: '#d9ff65' },
@@ -215,8 +217,8 @@ const projectsByYear = Object.groupBy ? Object.groupBy(projects, p => p.year) : 
 function yearEntries(year) {
   const entries = [];
   projects.filter(project => project.year === year).forEach(project => {
-    if (project.resume) entries.push({ ...project, files: [], sequence: entries.length + 1, total: 1 });
-    else project.files.forEach(file => entries.push({ ...project, files: [file], sequence: entries.length + 1 }));
+    if (project.resume) { entries.push({ ...project, mediaIndex: 0, sequence: entries.length + 1 }); return; }
+    for (let index = 1; index <= project.count; index++) entries.push({ ...project, mediaIndex: index, sequence: entries.length + 1 });
   });
   entries.forEach(entry => { entry.total = entries.length; });
   return entries;
@@ -593,19 +595,15 @@ function resumeMarkup() {
   return `<div class="resume-content"><div class="resume-head"><div><h3>${escapeHtml(data.name)}</h3><p class="resume-role">${escapeHtml(data.role)}</p></div><div class="resume-contact">${escapeHtml(data.contact).replace(/　/g, '<br>')}</div></div><div class="resume-grid"><section><h4>教育背景</h4><p>${escapeHtml(data.education).replace(/\n/g, '<br>')}</p></section><section><h4>工作经验</h4><p>${escapeHtml(data.experience).replace(/\n/g, '<br>')}</p></section><section><h4>技能特长</h4><p>${escapeHtml(data.skills).replace(/\n/g, '<br>')}</p></section><section><h4>自我评价</h4><p>${escapeHtml(data.summary).replace(/\n/g, '<br>')}</p></section></div></div>`;
 }
 function mediaMarkup(project, autoplay, thumbnail = false) {
-  const source = project.files[0];
-  const url = assetUrl(`myWorks/${source}`);
-  if (source.endsWith('.gif')) {
-    // GIF 已经转成小体积 MP4（assets/clips），圈里再用一圈静帧兜底：
-    // 平时只显示静帧，转到最前面的那张才露出视频并播放，同一时刻最多一份在解码。
-    const base = source.replace(/\.gif$/i, '');
-    const still = assetUrl(`assets/thumbs/${base}.jpg`);
-    const clip = assetUrl(`assets/clips/${base}.mp4`);
-    const alt = escapeHtml(displayName(project));
-    if (!thumbnail) return `<video src="${clip}" poster="${still}" ${autoplay ? 'autoplay' : ''} muted loop playsinline></video>`;
-    return `<img class="ring-still" src="${still}" alt="${alt}" /><video class="ring-clip" src="${clip}" poster="${still}" muted loop playsinline preload="none"></video>`;
-  }
-  return `<video src="${url}" ${autoplay ? 'autoplay' : ''} muted loop playsinline></video>`;
+  const index = project.mediaIndex || 1;
+  const clip = assetUrl(`assets/video/${project.year}/${project.title}/${index}.mp4`);
+  const still = assetUrl(`assets/thumbs/${project.year}/${project.title}/${index}.jpg`);
+  const alt = escapeHtml(displayName(project));
+  // 聚焦看大图时直接放视频，静帧当 poster 兜底。
+  if (!thumbnail) return `<video src="${clip}" poster="${still}" ${autoplay ? 'autoplay' : ''} muted loop playsinline></video>`;
+  // 圈内所有卡片一个逻辑：平时只显示静帧，转到最前面的那张才露出视频并播放，
+  // 同一时刻最多一份在解码，转动时不卡。
+  return `<img class="ring-still" src="${still}" alt="${alt}" /><video class="ring-clip" src="${clip}" poster="${still}" muted loop playsinline preload="none"></video>`;
 }
 function watchCardMediaLoading(card) {
   if (!card) return;
