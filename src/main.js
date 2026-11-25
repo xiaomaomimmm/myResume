@@ -707,7 +707,7 @@ function updateRingCardTransforms() {
     if (depth > frontDepth) { frontDepth = depth; frontIndex = index; }
     const x = Math.sin(theta) * radiusX;
     const y = Math.cos(theta) * radiusY;
-    const scale = .48 + depth * .52;
+    const scale = (.48 + depth * .52) * (card.__hover && !ringState.dragging ? 1.1 : 1);
     // 转动时会每帧改样式，所以只写真正变化的值：
     // 位置量到 0.5px、透明度量到 0.05、模糊只有三档（模糊是最贵的，不能每帧变）。
     const cache = card.__ringCache || (card.__ringCache = {});
@@ -715,7 +715,7 @@ function updateRingCardTransforms() {
     if (cache.ratio !== ratio) { cache.ratio = ratio; card.style.setProperty('--card-ratio', ratio); }
     const transform = `translate3d(calc(-50% + ${Math.round(x * 2) / 2}px), calc(-50% + ${Math.round(y * 2) / 2}px), 0) scale(${scale.toFixed(3)})`;
     if (cache.transform !== transform) { cache.transform = transform; card.style.transform = transform; }
-    const zIndex = Math.round(depth * 1000);
+    const zIndex = Math.round(depth * 1000) + (card.__hover ? 1000 : 0);
     if (cache.zIndex !== zIndex) { cache.zIndex = zIndex; card.style.zIndex = String(zIndex); }
     const opacity = Math.round((.28 + depth * .72) * 20) / 20;
     if (cache.opacity !== opacity) { cache.opacity = opacity; card.style.opacity = String(opacity); }
@@ -752,6 +752,10 @@ function renderRingGallery(year) {
     cards.forEach((card, index) => {
       setCardRatio(card, card.querySelector('img, video'));
       watchCardMediaLoading(card);
+      // 悬停时轻微放大：卡片 transform 每帧由环上位置重算，所以这里只记状态，
+      // 由 updateRingCardTransforms 一并算进去，避免和转动打架。
+      card.addEventListener('pointerenter', () => { card.__hover = true; });
+      card.addEventListener('pointerleave', () => { card.__hover = false; });
       card.addEventListener('click', () => {
         if (!ringState.moved) openProjectFocus(entries[index]);
       });

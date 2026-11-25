@@ -37,8 +37,8 @@
       .keys { display:flex; gap:5px; }
       kbd { min-width:24px; padding:6px 7px; border:1px solid var(--line); border-radius:5px; color:var(--ink); text-align:center; }
       .showcase-deck { position:fixed; inset:0; z-index:1; pointer-events:none; overflow:hidden; }
-      .showcase-card { position:absolute; width:clamp(120px,13vw,190px); aspect-ratio:1 / 1.15; padding:7px; border:1px solid rgba(244,239,231,.25); background:rgba(17,19,16,.62); box-shadow:0 18px 42px rgba(0,0,0,.22); opacity:.72; cursor:zoom-in; pointer-events:auto; transition:transform .55s cubic-bezier(.2,.75,.2,1), opacity .3s ease, filter .3s ease; }
-      .showcase-card:hover { opacity:1; filter:brightness(1.18); transform:translateY(-4px) rotate(0deg) scale(1.015); }
+      .showcase-card { position:absolute; width:clamp(120px,13vw,190px); aspect-ratio:1 / 1.15; padding:7px; border:1px solid rgba(244,239,231,.25); background:rgba(17,19,16,.62); box-shadow:0 18px 42px rgba(0,0,0,.22); opacity:.72; cursor:zoom-in; pointer-events:auto; transition:transform .38s cubic-bezier(.2,.75,.2,1), opacity .3s ease, filter .3s ease; }
+      .showcase-card:hover { opacity:1; filter:brightness(1.22); transform:translateY(-10px) rotate(0deg) scale(1.10); }
       .showcase-card:nth-child(1) { left:7%; top:21%; transform:rotate(-8deg); }
       .showcase-card:nth-child(2) { left:18%; top:10%; transform:rotate(5deg); }
       .showcase-card:nth-child(3) { right:7%; top:18%; transform:rotate(7deg); }
@@ -159,12 +159,12 @@
     </script>
     <div class="hud">
       <div class="showcase-deck" id="showcase-deck" aria-label="作品卡片展示"></div><div class="ring-gallery" id="ring-gallery" aria-hidden="true"><div class="ring-items" id="ring-items"></div></div>
-      <div class="topbar"><div class="brand">冀晓禹<span>•</span>作品集</div><div class="meta">版本 2026.11.24 r</div></div>
+      <div class="topbar"><div class="brand">冀晓禹<span>•</span>作品集</div><div class="meta">版本 2026.11.24 t</div></div>
       
       
       <div class="side-card left" id="side-left"></div><div class="panel" id="project-panel"><div class="media-frame" id="media-frame"></div><div class="panel-top"><div class="tag" id="panel-tag">2021 / 作品</div><div class="counter" id="panel-counter">01 / 01</div></div><h2 id="panel-title">作品</h2><p id="panel-description"></p></div><div class="side-card right" id="side-right"></div><div class="focus-layer" id="focus-layer" aria-hidden="true"><div class="focus-card" role="dialog" aria-modal="true" aria-label="作品预览"><button class="focus-close" id="focus-close" aria-label="关闭作品预览">×</button><button class="focus-nav focus-prev" id="focus-prev" aria-label="上一个作品" hidden>‹</button><button class="focus-nav focus-next" id="focus-next" aria-label="下一个作品" hidden>›</button><div class="focus-media" id="focus-media"></div><div class="focus-meta"><div><div class="focus-tag" id="focus-tag"></div><h2 class="focus-title" id="focus-title"></h2><p class="focus-description" id="focus-description"></p></div><div class="focus-counter" id="focus-counter"></div></div></div></div>
       <div class="mobile-controls"><button data-key="ArrowUp" aria-label="向前">↑</button><button data-key="ArrowDown" aria-label="向后">↓</button></div>
     </div>
-    <script type="module" src="./src/main.js?v=20261124r"></script>
+    <script type="module" src="./src/main.js?v=20261124t"></script>
   </body>
 </html>
